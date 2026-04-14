@@ -13,3 +13,6 @@ body {
   padding: 0;
   background-color: #F1F4F2; /* Your light Figma background */
 }
+/* .no-scrollbar::-webkit-scrollbar {
+  display: none;
+} */
