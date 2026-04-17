@@ -1,0 +1,3 @@
+This folder is for storing the database sql queries.
+When pushing your queries be sure to add a brief description on what they do. and also add your name.
+-Syed Abdul Rauf
