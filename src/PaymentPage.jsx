@@ -1,9 +1,42 @@
 import { useState } from "react";
-import img1 from "./public/T1.jpeg";
+import img1 from "../public/T1.jpeg";
+import { useNavigate } from "react-router-dom";
 
 export default function PaymentPage({ onBack }) {
+  const navigate = useNavigate();
   const [paymentMethod, setPaymentMethod] = useState("upi");
   const [deliveryMode, setDeliveryMode] = useState("self");
+  const [showPopup, setShowPopup] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [isSuccess, setIsSuccess] = useState(false);
+
+  const handlePayment = () => {
+    setShowPopup(true);
+    setProgress(0);
+    setIsSuccess(false);
+
+    let value = 0;
+
+    const interval = setInterval(() => {
+      value += 10;
+      setProgress(value);
+
+      if (value >= 100) {
+        clearInterval(interval);
+
+        // ✅ Show success screen
+        setTimeout(() => {
+          setIsSuccess(true);
+
+          // ✅ After 2 sec → redirect
+          setTimeout(() => {
+            navigate("/my-bookings");
+          }, 2000);
+
+        }, 300);
+      }
+    }, 200);
+  };
 
   return (
     <div className="w-full px-12 py-5 font-sans text-gray-800">
@@ -209,11 +242,47 @@ export default function PaymentPage({ onBack }) {
 
           {/* Pay Button */}
           <button
-            onClick={() => alert(`Payment of ₹6,000 via ${paymentMethod} initiated!`)}
+            onClick={handlePayment}
             className="w-full bg-green-700 hover:bg-green-800 text-white font-semibold py-4 rounded-xl text-base transition-colors duration-200 cursor-pointer flex items-center justify-center gap-2"
           >
             Pay →
           </button>
+          {showPopup && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-[320px] text-center shadow-xl">
+
+            {!isSuccess ? (
+              <>
+                <h2 className="text-lg font-semibold mb-3">
+                  Transaction in Progress
+                </h2>
+
+                <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
+                  <div
+                    className="bg-green-600 h-3"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+
+                <p className="text-sm text-gray-500">
+                  Processing payment...
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="text-green-600 text-3xl mb-2">✔</div>
+                <h2 className="font-semibold text-green-600">
+                  Payment Successful
+                </h2>
+                <p className="text-sm text-gray-500">
+                  Redirecting...
+                </p>
+              </>
+            )}
+
+          </div>
+        </div>
+      )}
 
         </div>
       </div>
