@@ -1,12 +1,12 @@
 import { useState } from "react";
 
-import img1 from "../public/T1.jpeg";
-import img2 from "../public/T2.jpeg";
-import img3 from "../public/T3.jpeg";
-import img4 from "../public/T4.jpeg";
-import img5 from "../public/T5.jpeg";
-
-const IMAGES = [img1, img2, img3, img4, img5];
+const IMAGES = [
+  "/T1.jpeg",
+  "/T2.jpeg",
+  "/T3.jpeg",
+  "/T4.jpeg",
+  "/T5.jpeg",
+];
 
 const SPECS = [
   { label: "Horsepower",   value: "57 HP" },
