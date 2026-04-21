@@ -1,5 +1,4 @@
 import { useState } from "react";
-import img1 from "../public/T1.jpeg";
 import { useNavigate } from "react-router-dom";
 
 export default function PaymentPage({ onBack }) {
@@ -24,11 +23,9 @@ export default function PaymentPage({ onBack }) {
       if (value >= 100) {
         clearInterval(interval);
 
-        // ✅ Show success screen
         setTimeout(() => {
           setIsSuccess(true);
 
-          // ✅ After 2 sec → redirect
           setTimeout(() => {
             navigate("/my-bookings");
           }, 2000);
@@ -72,9 +69,9 @@ export default function PaymentPage({ onBack }) {
               <span className="font-semibold text-sm">Rental Summary</span>
             </div>
 
-            {/* Tractor image */}
+            {/* Tractor image — from public folder */}
             <img
-              src={img1}
+              src="/T1.jpeg"
               alt="Tractor"
               className="w-full h-44 object-cover"
             />
@@ -108,7 +105,7 @@ export default function PaymentPage({ onBack }) {
               <span className="text-sm font-bold text-green-700">₹800 / day</span>
             </div>
 
-            {/* Delivery Mode — radio buttons (only one can be selected) */}
+            {/* Delivery Mode */}
             <div className="px-4 py-3 bg-green-50">
               <p className="text-sm font-semibold text-gray-700 mb-2">Select Delivery Mode</p>
               <div className="flex gap-4">
@@ -247,42 +244,32 @@ export default function PaymentPage({ onBack }) {
           >
             Pay →
           </button>
+
+          {/* Payment Popup */}
           {showPopup && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-[320px] text-center shadow-xl">
-
-            {!isSuccess ? (
-              <>
-                <h2 className="text-lg font-semibold mb-3">
-                  Transaction in Progress
-                </h2>
-
-                <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
-                  <div
-                    className="bg-green-600 h-3"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-
-                <p className="text-sm text-gray-500">
-                  Processing payment...
-                </p>
-              </>
-            ) : (
-              <>
-                <div className="text-green-600 text-3xl mb-2">✔</div>
-                <h2 className="font-semibold text-green-600">
-                  Payment Successful
-                </h2>
-                <p className="text-sm text-gray-500">
-                  Redirecting...
-                </p>
-              </>
-            )}
-
-          </div>
-        </div>
-      )}
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+              <div className="bg-white rounded-2xl p-6 w-[320px] text-center shadow-xl">
+                {!isSuccess ? (
+                  <>
+                    <h2 className="text-lg font-semibold mb-3">Transaction in Progress</h2>
+                    <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
+                      <div
+                        className="bg-green-600 h-3 rounded-full transition-all duration-200"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <p className="text-sm text-gray-500">Processing payment...</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-green-600 text-3xl mb-2">✔</div>
+                    <h2 className="font-semibold text-green-600">Payment Successful</h2>
+                    <p className="text-sm text-gray-500">Redirecting...</p>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
         </div>
       </div>
