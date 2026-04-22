@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firebase";
+import { supabase } from "../supabaseClient"; // Imported the Supabase client
+
 
 const Login = () => {
   const navigate = useNavigate();
   const [loginData, setLoginData] = useState({
-    identifier: '', // Phone or Email
+    identifier: '', // This will be the Email
     password: ''
   });
 
@@ -12,31 +16,42 @@ const Login = () => {
     setLoginData({ ...loginData, [e.target.name]: e.target.value });
   };
 
-  // --- NEW BACKEND CONNECTION LOGIC ---
-  const handleLoginSubmit = async (e) => {
-    e.preventDefault();
+  // --- REFINED BACKEND CONNECTION ---
+const handleLoginSubmit = async (e) => {
+  e.preventDefault();
+  try {
+    // 1. Firebase Login
+    const userCred = await signInWithEmailAndPassword(auth, loginData.identifier, loginData.password);
+    const user = userCred.user;
 
-    try {
-      const response = await fetch('http://localhost:5000/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(loginData),
-      });
+    // 2. GET THE ID TOKEN (The "Pass")
+    const idToken = await user.getIdToken();
 
-      const data = await response.json();
+    // 3. TELL SUPABASE WHO YOU ARE
+    // This bridges the gap so RLS recognizes your UID
+    await supabase.auth.setSession({
+      access_token: idToken,
+      refresh_token: idToken, // For testing, using the same token is usually fine
+    });
 
-      if (data.success) {
-        // Display the congratulations message from the backend
-        alert(data.message);
-        // In the next step, we will navigate to the real dashboard
-      } else {
-        alert(data.message);
-      }
-    } catch (error) {
-      console.error("Error connecting to backend:", error);
-      alert("Backend server is not running! Make sure to run 'npm run dev' in your farmease-backend folder.");
-    }
-  };
+    // 4. Verification check
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', user.uid)
+      .single();
+
+    if (error || !profile) throw new Error("Profile check failed. Check RLS or Data.");
+
+    alert(`Welcome, ${profile.full_name}!`);
+    navigate("/equipment"); 
+
+  } catch (error) {
+    console.error(error);
+    alert(error.message);
+  }
+};
+  
   // ------------------------------------
 
   return (
@@ -74,17 +89,17 @@ const Login = () => {
             <p className="text-[#59615F] font-medium">Enter your credentials to get started.</p>
           </header>
 
-          {/* ADDED handleLoginSubmit HERE */}
           <form className="space-y-8" onSubmit={handleLoginSubmit}>
 
-            {/* Identifier Input */}
+            {/* Email Input */}
             <div>
-              <label className="block text-sm font-bold text-[#2D3432] mb-3">Phone Number / Email Address</label>
+              <label className="block text-sm font-bold text-[#2D3432] mb-3">Email Address</label>
               <input
+                type="email"
                 name="identifier"
                 onChange={handleChange}
                 className="w-full bg-[#E9F0EC]/60 border-none rounded-xl px-5 py-4 focus:ring-2 focus:ring-[#1A4D2E] outline-none placeholder:text-gray-400"
-                placeholder="+91 00000 00000"
+                placeholder="ramesh@gmail.com"
                 required
               />
             </div>

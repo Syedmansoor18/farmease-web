@@ -1,8 +1,11 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firebase"; // Your Firebase Config
+import { supabase } from "../supabaseClient"; // Import the Supabase client we created
 
 const Signup = () => {
-  const navigate = useNavigate(); // Hook for navigation
+  const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [fileName, setFileName] = useState("");
 
@@ -11,37 +14,24 @@ const Signup = () => {
     aadhaar: '', kisanId: '', state: '', district: '', village: '', pinCode: ''
   });
 
-  const southStates = [
-    "Andhra Pradesh", "Karnataka", "Kerala", "Tamil Nadu", "Telangana",
-    "Goa", "Gujarat", "Maharashtra", "Odisha", "Puducherry"
-  ];
-
-  const karnatakaDistricts = [
-    "Bagalkot", "Ballari", "Belagavi", "Bengaluru Urban", "Bengaluru Rural",
-    "Bidar", "Chamarajanagar", "Chikkaballapur", "Chikkamagaluru", "Dakshina Kannada"
-  ];
+  const southStates = ["Andhra Pradesh", "Karnataka", "Kerala", "Tamil Nadu", "Telangana", "Goa", "Gujarat", "Maharashtra", "Odisha", "Puducherry"];
+  const karnatakaDistricts = ["Bagalkot", "Ballari", "Belagavi", "Bengaluru Urban", "Bengaluru Rural", "Bidar", "Chamarajanagar", "Chikkaballapur", "Chikkamagaluru", "Dakshina Kannada"];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-
     if (name === "aadhaar") {
       const val = value.replace(/\D/g, "");
       if (val.length <= 12) setFormData({ ...formData, [name]: val });
       return;
     }
-
     if (name === "kisanId") {
       if (value.length <= 10) setFormData({ ...formData, [name]: value.toUpperCase() });
       return;
     }
-
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleFileClick = () => {
-    fileInputRef.current.click();
-  };
-
+  const handleFileClick = () => fileInputRef.current.click();
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) setFileName(file.name);
@@ -50,41 +40,66 @@ const Signup = () => {
   const handleLocation = () => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
-        (position) => alert("Location Access Granted!"),
-        (error) => alert("Location Denied.")
+        () => alert("Location Access Granted!"),
+        () => alert("Location Denied.")
       );
     }
   };
 
-  // --- UPDATED BACKEND CONNECTION LOGIC ---
+  // --- REFINED BACKEND CONNECTION LOGIC ---
   const handleSignupSubmit = async (e) => {
     e.preventDefault();
 
     try {
-      const response = await fetch('http://localhost:5000/api/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        alert(data.message); // This will say "Congratulations! Account created..."
-        navigate('/login'); // Redirect to login page
-      } else {
-        alert("Error: " + data.message);
+      if (formData.password !== formData.confirmPassword) {
+        alert("Passwords do not match");
+        return;
       }
-    } catch (error) {
-      console.error("Signup Error:", error);
-      alert("Backend server is not running!");
+
+      // 1. Create user in Firebase Auth
+      const userCred = await createUserWithEmailAndPassword(
+        auth,
+        formData.email,
+        formData.password
+      );
+
+      const user = userCred.user;
+
+      // 2. Sync profile data to Supabase
+      // We use the user.uid from Firebase as the 'id' to link the two systems
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert([
+          {
+            id: user.uid, // This must be the Firebase UID 
+            full_name: formData.fullName, // Matches File-01 [cite: 7]
+            email: formData.email, // Matches File-01 [cite: 8]
+            phone: formData.phone, // Matches File-01 [cite: 9]
+            aadhaar_number: formData.aadhaar, // Matches File-01 [cite: 10]
+            kisan_id: formData.kisanId, // Matches File-01 [cite: 11]
+            state: formData.state, // Matches File-01 [cite: 12]
+            district: formData.district, // Matches File-01 [cite: 13]
+            is_verified: false // Matches File-01 [cite: 14]
+          }
+        ]);
+
+      if (error) {
+        // If Supabase fails, we might want to alert the user
+        throw new Error(`Supabase Sync Error: ${error.message}`);
+      }
+
+      console.log("Profile created in Supabase successfully");
+      alert("Account created and synced successfully ✅");
+      navigate("/login");
+
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
     }
   };
-  // ----------------------------------------
 
   return (
     <div className="flex min-h-screen bg-white font-sans">
-
       {/* LEFT SIDE: Image + Text Overlay */}
       <div className="hidden lg:flex w-1/2 bg-[#006F1D] relative overflow-hidden">
         <img
@@ -102,7 +117,7 @@ const Signup = () => {
         </div>
       </div>
 
-      {/* RIGHT SIDE: FULL FORM RESTORED */}
+      {/* RIGHT SIDE: Form */}
       <div className="w-full lg:w-1/2 p-8 md:p-16 overflow-y-auto">
         <div className="max-w-xl mx-auto">
           <header className="mb-10 text-center lg:text-left">
@@ -110,9 +125,7 @@ const Signup = () => {
             <p className="text-[#59615F]">Provide your details to get started with smart farming solutions.</p>
           </header>
 
-          {/* ATTACHED handleSignupSubmit HERE */}
           <form className="space-y-8" onSubmit={handleSignupSubmit}>
-
             {/* Section 1: Basic Information */}
             <div className="space-y-4">
               <div className="flex items-center space-x-2 text-[#006F1D] font-bold">
@@ -142,7 +155,7 @@ const Signup = () => {
               </div>
             </div>
 
-            {/* Section 2: Identity Details + File Upload */}
+            {/* Section 2: Identity Details */}
             <div className="space-y-4">
               <div className="flex items-center space-x-2 text-[#006F1D] font-bold">
                 <span>🆔</span><h3 className="text-[#2D3432]">Identity Details</h3>
@@ -186,7 +199,6 @@ const Signup = () => {
               </div>
             </div>
 
-            {/* Terms and Button */}
             <div className="pt-4 space-y-4 text-center lg:text-left">
               <label className="flex items-start space-x-2 cursor-pointer">
                 <input type="checkbox" className="mt-1 accent-[#006F1D]" required />

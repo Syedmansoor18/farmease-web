@@ -9,8 +9,8 @@ import Footer from './components/Footer';
 
 import Signup from "./pages/Signup.jsx";
 import Login from "./pages/Login.jsx";
+import EquipmentPage from "./pages/EquipmentPage";
 
-import Equipment_Feed_and_Home from './Dashboard/Equipment_Feed_and_Home.jsx';
 import EquipmentDetailPage from "./EquipmentDetailPage.jsx";
 import PaymentPage from "./PaymentPage.jsx";
 import MyBookings from "./MyBookings.jsx";
@@ -80,41 +80,12 @@ function App() {
     <Router>
       <Routes>
 
-        <Route
-          path="/"
-          element={<Layout><LandingPage /></Layout>}
-        />
+        {/* Route for the Signup Page */}
+        <Route path="/signup" element={<Signup />} />
+          <Route path="/login" element={<Login />} />
 
-        <Route
-          path="/signup"
-          element={<Layout><Signup /></Layout>}
-        />
-
-        <Route
-          path="/login"
-          element={<Layout><Login /></Layout>}
-        />
-
-        <Route
-          path="/equipments"
-          element={<Layout><Equipment_Feed_and_Home /></Layout>}
-        />
-
-        <Route
-          path="/equipment-detail"
-          element={<Layout><EquipmentFlow /></Layout>}
-        />
-
-        <Route
-          path="/my-bookings"
-          element={<Layout><MyBookings /></Layout>}
-        />
-
-        <Route
-          path="/profile"
-          element={<PostingFlow />}
-        />
-
+          {/* Route for equipment Page */}
+          <Route path="/equipment" element={<EquipmentPage />} />
       </Routes>
     </Router>
   );
