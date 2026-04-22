@@ -17,7 +17,11 @@ import MyBookings from "./MyBookings.jsx";
 
 import Layout from "./components/Layout";
 
-// Landing Page
+import Profile from "./Profile";
+import Postingsuccessfulpage from "./Postingsuccessfulpage";
+import EquipmentPostingPage from "./EquipmentPostingPage";
+
+// ─── Landing Page ─────────────────────────────────────────────────────────────
 const LandingPage = () => (
   <>
     <Hero />
@@ -28,15 +32,49 @@ const LandingPage = () => (
   </>
 );
 
-// Equipment Flow
+// ─── Equipment Detail + Payment Flow ──────────────────────────────────────────
 const EquipmentFlow = () => {
   const [page, setPage] = useState("equipment");
-
   return page === "equipment"
     ? <EquipmentDetailPage onBookNow={() => setPage("payment")} />
     : <PaymentPage onBack={() => setPage("equipment")} />;
 };
 
+// ─── Posting Flow (Profile → Post → Success) ──────────────────────────────────
+const PostingFlow = () => {
+  const [screen, setScreen] = useState("profile");
+
+  const navigate = (s) => {
+    if (s === "home") return;
+    setScreen(s);
+  };
+
+  if (screen === "profile")
+    return <Profile screen="profile" onNavigate={navigate} />;
+
+  if (screen === "success")
+    return (
+      <Postingsuccessfulpage
+        screen="success"
+        onNavigate={navigate}
+        onEditListing={() => setScreen("post")}
+        onPostAnother={() => setScreen("post")}
+      />
+    );
+
+  if (screen === "post")
+    return (
+      <EquipmentPostingPage
+        screen="post"
+        onNavigate={navigate}
+        onPost={() => setScreen("success")}
+      />
+    );
+
+  return null;
+};
+
+// ─── Main App ─────────────────────────────────────────────────────────────────
 function App() {
   return (
     <Router>
@@ -44,54 +82,37 @@ function App() {
 
         <Route
           path="/"
-          element={
-            <Layout>
-              <LandingPage />
-            </Layout>
-          }
+          element={<Layout><LandingPage /></Layout>}
         />
+
         <Route
           path="/signup"
-          element={
-            <Layout>
-              <Signup />
-            </Layout>
-          }
+          element={<Layout><Signup /></Layout>}
         />
+
         <Route
           path="/login"
-          element={
-            <Layout>
-              <Login />
-            </Layout>
-          }
+          element={<Layout><Login /></Layout>}
         />
 
         <Route
           path="/equipments"
-          element={
-            <Layout>
-              <Equipment_Feed_and_Home />
-            </Layout>
-          }
+          element={<Layout><Equipment_Feed_and_Home /></Layout>}
         />
 
         <Route
           path="/equipment-detail"
-          element={
-            <Layout>
-              <EquipmentFlow />
-            </Layout>
-          }
+          element={<Layout><EquipmentFlow /></Layout>}
         />
 
         <Route
           path="/my-bookings"
-          element={
-            <Layout>
-              <MyBookings />
-            </Layout>
-          }
+          element={<Layout><MyBookings /></Layout>}
+        />
+
+        <Route
+          path="/profile"
+          element={<PostingFlow />}
         />
 
       </Routes>
