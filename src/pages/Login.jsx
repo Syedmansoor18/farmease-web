@@ -1,14 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../firebase";
-import { supabase } from "../supabaseClient"; // Imported the Supabase client
-
+import { supabase } from "../supabaseClient"; 
 
 const Login = () => {
   const navigate = useNavigate();
   const [loginData, setLoginData] = useState({
-    identifier: '', // This will be the Email
+    identifier: '', 
     password: ''
   });
 
@@ -16,42 +13,45 @@ const Login = () => {
     setLoginData({ ...loginData, [e.target.name]: e.target.value });
   };
 
-  // --- REFINED BACKEND CONNECTION ---
-const handleLoginSubmit = async (e) => {
-  e.preventDefault();
-  try {
-    // 1. Firebase Login
-    const userCred = await signInWithEmailAndPassword(auth, loginData.identifier, loginData.password);
-    const user = userCred.user;
+  // --- NEW SUPABASE NATIVE CONNECTION ---
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      // 1. Supabase Native Login (Automatically sets the session for RLS!)
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: loginData.identifier,
+        password: loginData.password,
+      });
 
-    // 2. GET THE ID TOKEN (The "Pass")
-    const idToken = await user.getIdToken();
+      if (authError) throw authError;
 
-    // 3. TELL SUPABASE WHO YOU ARE
-    // This bridges the gap so RLS recognizes your UID
-    await supabase.auth.setSession({
-      access_token: idToken,
-      refresh_token: idToken, // For testing, using the same token is usually fine
-    });
+      // 2. Verification check against the profiles table
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', authData.user.id)
+        .single();
 
-    // 4. Verification check
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('full_name')
-      .eq('id', user.uid)
-      .single();
+      // ... (inside handleLoginSubmit)
+      if (profileError || !profile) {
+        throw new Error("Profile check failed. Please ensure you have signed up correctly.");
+      }
 
-    if (error || !profile) throw new Error("Profile check failed. Check RLS or Data.");
+      console.log("Verified User:", profile.full_name);
+      
+      // 1. Save the name for your Home.jsx to find!
+      localStorage.setItem('userName', profile.full_name);
+      
+      alert(`Welcome back, ${profile.full_name}! ✅`);
+      
+      // 2. CHANGE THE REDIRECT HERE
+      navigate("/home"); 
 
-    alert(`Welcome, ${profile.full_name}!`);
-    navigate("/equipment"); 
-
-  } catch (error) {
-    console.error(error);
-    alert(error.message);
-  }
-};
-  
+    } catch (error) {
+      console.error("Login Error:", error);
+      alert(error.message);
+    }
+  };
   // ------------------------------------
 
   return (

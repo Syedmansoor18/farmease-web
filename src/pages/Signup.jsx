@@ -1,8 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../firebase"; // Your Firebase Config
-import { supabase } from "../supabaseClient"; // Import the Supabase client we created
+import { supabase } from "../supabaseClient"; 
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -46,7 +44,7 @@ const Signup = () => {
     }
   };
 
-  // --- REFINED BACKEND CONNECTION LOGIC ---
+  // --- NEW SUPABASE NATIVE SIGNUP LOGIC ---
   const handleSignupSubmit = async (e) => {
     e.preventDefault();
 
@@ -56,36 +54,33 @@ const Signup = () => {
         return;
       }
 
-      // 1. Create user in Firebase Auth
-      const userCred = await createUserWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.password
-      );
+      // 1. Create user in Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+      });
 
-      const user = userCred.user;
+      if (authError) throw authError;
 
-      // 2. Sync profile data to Supabase
-      // We use the user.uid from Firebase as the 'id' to link the two systems
-      const { data, error } = await supabase
+      // 2. Insert profile data into the Supabase profiles table
+      const { error: profileError } = await supabase
         .from('profiles')
         .insert([
           {
-            id: user.uid, // This must be the Firebase UID 
-            full_name: formData.fullName, // Matches File-01 [cite: 7]
-            email: formData.email, // Matches File-01 [cite: 8]
-            phone: formData.phone, // Matches File-01 [cite: 9]
-            aadhaar_number: formData.aadhaar, // Matches File-01 [cite: 10]
-            kisan_id: formData.kisanId, // Matches File-01 [cite: 11]
-            state: formData.state, // Matches File-01 [cite: 12]
-            district: formData.district, // Matches File-01 [cite: 13]
-            is_verified: false // Matches File-01 [cite: 14]
+            id: authData.user.id, // Supabase Native UUID
+            full_name: formData.fullName, 
+            email: formData.email, 
+            phone: formData.phone, 
+            aadhaar_number: formData.aadhaar, 
+            kisan_id: formData.kisanId, 
+            state: formData.state, 
+            district: formData.district, 
+            is_verified: false 
           }
         ]);
 
-      if (error) {
-        // If Supabase fails, we might want to alert the user
-        throw new Error(`Supabase Sync Error: ${error.message}`);
+      if (profileError) {
+        throw new Error(`Profile Creation Error: ${profileError.message}`);
       }
 
       console.log("Profile created in Supabase successfully");
@@ -163,7 +158,7 @@ const Signup = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-[#2D3432] mb-1">Aadhaar (12 Digits)</label>
-                  <input name="aadhaar" value={formData.aadhaar} onChange={handleChange} className="w-full bg-[#F1F4F2] border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#006F1D]" placeholder="0000 0000 0000" required />
+                  <input name="aadhaar" value={formData.aadhaar} onChange={handleChange} className="w-full bg-[#F1F4F2] border-none rounded-xl px-4 py-3 focus:ring-2 focus:ring-[#006F1D]" placeholder="[Aadhaar Redacted]" required />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-[#2D3432] mb-1">Kisan ID</label>
