@@ -3,8 +3,13 @@
 -- Description:
 -- This file contains all stored procedures and helper functions 
 -- used in the FarmEase system. These functions handle core backend 
--- logic 
+-- logic.
 -- Author: Pragya
+-- Upgraded: Added security_invoker to Views to strictly enforce RLS.
+-- ============================================
+
+-- ============================================
+-- 1. STORED FUNCTIONS
 -- ============================================
 
 -- FUNCTION 1: check_booking_conflict
@@ -31,7 +36,6 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- FUNCTION 2: calculate_booking_price
--- FIX: replaced is_free (was missing from old schema) — now works against corrected File 01
 CREATE OR REPLACE FUNCTION calculate_booking_price(
   p_equipment_id UUID,
   p_start_date   DATE,
@@ -83,8 +87,6 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- FUNCTION 4: get_nearby_equipment
--- FIX: farmers table does NOT have full_name or phone.
---      Join through profiles via farmers.profile_id to get those fields.
 CREATE OR REPLACE FUNCTION get_nearby_equipment(
   p_state           TEXT,
   p_district        TEXT,
@@ -113,7 +115,7 @@ BEGIN
     p.phone
   FROM equipment_list el
   JOIN farmers f   ON f.id = el.owner_id
-  JOIN profiles p  ON p.id = f.profile_id   -- FIX: full_name/phone live on profiles
+  JOIN profiles p  ON p.id = f.profile_id
   WHERE el.is_available = TRUE
     AND LOWER(el.state) = LOWER(p_state)
     AND (
@@ -127,10 +129,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+
+-- ============================================
+-- 2. SECURE VIEWS
+-- ============================================
+
 -- VIEW: equipment_with_owner
--- FIX: added columns now present in corrected equipment_list schema.
---      owner full_name/phone come from profiles via farmers.
-CREATE OR REPLACE VIEW equipment_with_owner AS
+-- Upgraded with security_invoker = true so RLS is enforced
+CREATE OR REPLACE VIEW equipment_with_owner WITH (security_invoker = true) AS
 SELECT
   el.id,
   el.name,
@@ -152,12 +158,11 @@ SELECT
   f.land_size   AS owner_land_size
 FROM equipment_list el
 JOIN farmers  f ON f.id = el.owner_id
-JOIN profiles p ON p.id = f.profile_id;   -- FIX: join to profiles for name/phone
+JOIN profiles p ON p.id = f.profile_id;
 
 -- VIEW: booking_details
--- FIX: b.notes is now a real column (added to bookings in corrected File 01).
---      borrower/owner names come from profiles (not farmers).
-CREATE OR REPLACE VIEW booking_details AS
+-- Upgraded with security_invoker = true so private bookings stay private
+CREATE OR REPLACE VIEW booking_details WITH (security_invoker = true) AS
 SELECT
   b.id,
   b.status,
@@ -177,6 +182,6 @@ SELECT
 FROM bookings b
 JOIN equipment_list el  ON el.id  = b.equipment_id
 JOIN farmers bf         ON bf.id  = b.farmer_id
-JOIN profiles pb        ON pb.id  = bf.profile_id   -- FIX: borrower name/phone from profiles
+JOIN profiles pb        ON pb.id  = bf.profile_id
 JOIN farmers of_        ON of_.id = el.owner_id
-JOIN profiles po        ON po.id  = of_.profile_id; -- FIX: owner name/phone from profiles
+JOIN profiles po        ON po.id  = of_.profile_id;
