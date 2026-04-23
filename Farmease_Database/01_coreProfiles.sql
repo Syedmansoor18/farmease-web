@@ -1,10 +1,14 @@
--- FILE 01: Core Schema (CORRECTED)
+-- FILE 01: Core Schema (PURE SUPABASE EDITION)
 -- Use extensions schema for UUIDs
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA extensions;
 
--- 1. PROFILES
+-- ==========================================
+-- 1. CORE TABLES
+-- ==========================================
+
+-- 1. PROFILES (Tied directly to Supabase Auth)
 CREATE TABLE IF NOT EXISTS profiles (
-  id              UUID PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
+  id              UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name       TEXT NOT NULL,
   email           TEXT UNIQUE,
   phone           TEXT UNIQUE,
@@ -14,13 +18,12 @@ CREATE TABLE IF NOT EXISTS profiles (
   district        TEXT NOT NULL,
   village         TEXT,
   pincode         TEXT,
-  password_hash   TEXT,
   is_verified     BOOLEAN DEFAULT FALSE,
   created_at      TIMESTAMPTZ DEFAULT NOW(),
   updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. FARMERS
+-- 2. FARMERS (Extended Profile)
 CREATE TABLE IF NOT EXISTS farmers (
   id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   profile_id    UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -79,7 +82,10 @@ CREATE TABLE IF NOT EXISTS crop_equipment_map (
   notes          TEXT
 );
 
--- Automatic Timestamp Function
+-- ==========================================
+-- 2. AUTOMATIC TIMESTAMPS
+-- ==========================================
+
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -88,7 +94,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Triggers
 CREATE TRIGGER trg_profiles_updated
   BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_farmers_updated
@@ -98,36 +103,38 @@ CREATE TRIGGER trg_equipment_updated
 CREATE TRIGGER trg_bookings_updated
   BEFORE UPDATE ON bookings FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
--- MISCELLENOUS QUERIES!!  
---ALTER TABLE bookings ADD COLUMN IF NOT EXISTS notes TEXT;
 
---ALTER TABLE profiles ADD COLUMN IF NOT EXISTS password_hash TEXT;
---ALTER TABLE profiles ADD COLUMN IF NOT EXISTS village TEXT;
---ALTER TABLE profiles ADD COLUMN IF NOT EXISTS pincode TEXT;
+-- ==========================================
+-- 3. SUPABASE ROW LEVEL SECURITY (RLS)
+-- ==========================================
 
---ALTER TABLE profiles DROP CONSTRAINT profiles_id_fkey;
---ALTER TABLE profiles ALTER COLUMN id SET DEFAULT uuid_generate_v4();
---ALTER TABLE profiles ADD COLUMN IF NOT EXISTS firebase_uid TEXT UNIQUE NOT NULL;
---ALTER TABLE profiles          DISABLE ROW LEVEL SECURITY;
---ALTER TABLE farmers           DISABLE ROW LEVEL SECURITY;
---ALTER TABLE equipment_list    DISABLE ROW LEVEL SECURITY;
---ALTER TABLE bookings          DISABLE ROW LEVEL SECURITY;
---ALTER TABLE crop_equipment_map DISABLE ROW LEVEL SECURITY;
+-- Enable RLS on all operational tables
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE farmers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE equipment_list ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 
+-- Profiles: Users can read all, but only edit their own
+CREATE POLICY "Profiles are viewable by authenticated users" ON profiles FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Users can insert own profile" ON profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
 
--- 1. Drop the dependent views first (they lock the table)
---DROP VIEW IF EXISTS booking_details;
---DROP VIEW IF EXISTS equipment_with_owner;
+-- Farmers: Users can read all, but only manage their own farmer record
+CREATE POLICY "Farmers are viewable by authenticated users" ON farmers FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Users can insert own farmer record" ON farmers FOR INSERT WITH CHECK (auth.uid() = profile_id);
+CREATE POLICY "Users can update own farmer record" ON farmers FOR UPDATE USING (auth.uid() = profile_id) WITH CHECK (auth.uid() = profile_id);
 
--- 2. Change the ID column type in all related tables
--- We have to drop and recreate the foreign key constraints to change types
---ALTER TABLE farmers DROP CONSTRAINT farmers_profile_id_fkey;
---ALTER TABLE profiles ALTER COLUMN id TYPE TEXT;
---ALTER TABLE farmers ALTER COLUMN profile_id TYPE TEXT;
+-- Equipment: Users can read all, but farmers only manage their own gear
+CREATE POLICY "Equipment is viewable by authenticated users" ON equipment_list FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Farmers can manage own equipment" ON equipment_list FOR ALL USING (
+  owner_id IN (SELECT id FROM farmers WHERE profile_id = auth.uid())
+);
 
--- 3. Re-add the foreign key constraint
---ALTER TABLE farmers 
---ADD CONSTRAINT farmers_profile_id_fkey 
---FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE;
-
--- 4. Re-run your File-04 (Views & Functions)
+-- Bookings: Only visible to the borrower and the owner of the equipment
+CREATE POLICY "Bookings viewable by involved parties" ON bookings FOR SELECT USING (
+  farmer_id IN (SELECT id FROM farmers WHERE profile_id = auth.uid()) OR
+  equipment_id IN (SELECT id FROM equipment_list WHERE owner_id IN (SELECT id FROM farmers WHERE profile_id = auth.uid()))
+);
+CREATE POLICY "Users can create bookings" ON bookings FOR INSERT WITH CHECK (
+  farmer_id IN (SELECT id FROM farmers WHERE profile_id = auth.uid())
+);
