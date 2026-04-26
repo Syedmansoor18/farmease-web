@@ -1,4 +1,7 @@
 import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import Sidebar from "../components/Sidebar";
+import { useLanguage } from "../context/LanguageContext";
 
 const ALL_CATEGORIES = [
   "Tractor","Harvester","Combine Harvester","Rotavator","Cultivator",
@@ -29,74 +32,10 @@ const STATE_LABELS = {
   uttar_pradesh: "Uttar Pradesh",
 };
 
-/* ─── Sidebar ─────────────────────────────────────────────────── */
-const Sidebar = ({ screen, onNavigate }) => (
-  <div
-    className="bg-white border-r border-gray-100 flex flex-col items-center justify-center gap-8 flex-shrink-0"
-    style={{
-      width: "52px",
-      position: "fixed",
-      top: 0,
-      left: 0,
-      height: "100vh",
-      zIndex: 50,
-    }}
-  >
-    {/* Home */}
-    <button className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-50 transition-colors">
-      <svg viewBox="0 0 24 24" className="w-5 h-5 text-gray-400 fill-current">
-        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
-      </svg>
-    </button>
+const EquipmentPostingPage = ({ onNavigate, screen = "post" }) => {
+  const navigate = useNavigate();
+  const { t } = useLanguage();
 
-    {/* Search */}
-    <button className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-50 transition-colors">
-      <svg viewBox="0 0 24 24" className="w-5 h-5 text-gray-400 fill-current hover:text-green-700 cursor-pointer transition-colors">
-        <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
-      </svg>
-    </button>
-
-    {/* Post (Add) */}
-    <button
-      onClick={() => onNavigate?.("post")}
-      className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-green-50 transition-colors"
-    >
-      <svg
-        viewBox="0 0 24 24"
-        className={`w-5 h-5 fill-current transition-colors ${
-          screen === "post" || screen === "success" ? "text-green-700" : "text-gray-400 hover:text-green-700"
-        }`}
-      >
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z" />
-      </svg>
-    </button>
-
-    {/* Bell */}
-    <button className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-50 transition-colors">
-      <svg viewBox="0 0 24 24" className="w-5 h-5 text-gray-400 fill-current hover:text-green-700 cursor-pointer transition-colors">
-        <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" />
-      </svg>
-    </button>
-
-    {/* Profile */}
-    <button
-      onClick={() => onNavigate?.("profile")}
-      className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-50 transition-colors"
-    >
-      <svg
-        viewBox="0 0 24 24"
-        className={`w-5 h-5 fill-current cursor-pointer transition-colors ${
-          screen === "profile" ? "text-green-700" : "text-gray-400 hover:text-green-700"
-        }`}
-      >
-        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-      </svg>
-    </button>
-  </div>
-);
-
-/* ─── Main Page ───────────────────────────────────────────────── */
-const EquipmentPostingPage = ({ onPost, onNavigate, screen = "post" }) => {
   const [listingIntent, setListingIntent] = useState("Rent");
   const [condition, setCondition]         = useState("Brand New");
   const [availableNow, setAvailableNow]   = useState(true);
@@ -124,11 +63,11 @@ const EquipmentPostingPage = ({ onPost, onNavigate, screen = "post" }) => {
   };
 
   const handleUseCurrentLocation = () => {
-    if (!navigator.geolocation) { showToast("Geolocation not supported."); return; }
-    showToast("Detecting location...");
+    if (!navigator.geolocation) { showToast(t("geolocationNotSupported")); return; }
+    showToast(t("detectingLocation"));
     navigator.geolocation.getCurrentPosition(
-      () => showToast("Location detected!"),
-      () => showToast("Could not detect. Please enter manually.")
+      () => showToast(t("locationDetected")),
+      () => showToast(t("locationFailed"))
     );
   };
 
@@ -156,7 +95,7 @@ const EquipmentPostingPage = ({ onPost, onNavigate, screen = "post" }) => {
     <div className="bg-gray-50 min-h-screen" style={{ maxWidth: "100vw", overflowX: "hidden" }}>
       <Sidebar screen={screen} onNavigate={onNavigate} />
 
-      <div className="min-w-0 py-5 px-5" style={{ marginLeft: "52px" }}>
+      <div className="min-w-0 py-5 px-5" style={{ marginLeft: "76px" }}>
         <div className="flex gap-6">
 
           {/* ══ LEFT COLUMN ══════════════════════════════════════════ */}
@@ -164,13 +103,12 @@ const EquipmentPostingPage = ({ onPost, onNavigate, screen = "post" }) => {
 
             {/* Media Gallery */}
             <div className="mb-5">
-              <h2 className="text-sm font-semibold text-gray-700 mb-3">Media Gallery</h2>
+              <h2 className="text-sm font-semibold text-gray-700 mb-3">{t("mediaGallery")}</h2>
 
-              <input ref={mainInputRef}  type="file" accept="image/*"          className="hidden" onChange={(e) => handleMainFiles(e.target.files)} />
-              <input ref={extraInputRef} type="file" accept="image/*" multiple  className="hidden" onChange={(e) => handleExtraFiles(e.target.files)} />
+              <input ref={mainInputRef}  type="file" accept="image/*"         className="hidden" onChange={(e) => handleMainFiles(e.target.files)} />
+              <input ref={extraInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleExtraFiles(e.target.files)} />
 
               <div className="flex gap-3 items-start">
-                {/* Main photo drop-zone — larger to match screenshot */}
                 <div
                   onClick={() => !mainPhoto && mainInputRef.current.click()}
                   onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -198,7 +136,7 @@ const EquipmentPostingPage = ({ onPost, onNavigate, screen = "post" }) => {
                         onClick={(e) => { e.stopPropagation(); mainInputRef.current.click(); }}
                         className="absolute bottom-0 inset-x-0 bg-black/40 text-white text-xs py-1 text-center"
                       >
-                        Change Photo
+                        {t("changePhoto")}
                       </button>
                     </>
                   ) : (
@@ -206,13 +144,12 @@ const EquipmentPostingPage = ({ onPost, onNavigate, screen = "post" }) => {
                       <svg viewBox="0 0 24 24" className="w-10 h-10 text-green-600 mb-2 fill-current">
                         <path d="M19.35 10.04A7.49 7.49 0 0012 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 000 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" />
                       </svg>
-                      <span className="text-sm text-green-700 font-medium">Upload Main Photo</span>
-                      <span className="text-xs text-green-500 mt-1 text-center px-3">Drag & Drop or Click</span>
+                      <span className="text-sm text-green-700 font-medium">{t("uploadMainPhoto")}</span>
+                      <span className="text-xs text-green-500 mt-1 text-center px-3">{t("dragDropOrClick")}</span>
                     </>
                   )}
                 </div>
 
-                {/* Extra thumbnails — stacked vertically, larger */}
                 <div className="flex flex-col gap-2">
                   {extraPhotos.map((photo, i) => (
                     <div
@@ -248,31 +185,31 @@ const EquipmentPostingPage = ({ onPost, onNavigate, screen = "post" }) => {
               <p className="text-xs text-gray-400 mt-2">
                 {mainPhoto
                   ? `1 main + ${extraPhotos.length} additional photo${extraPhotos.length !== 1 ? "s" : ""}`
-                  : "No photos uploaded yet — click or drag an image above"}
+                  : t("noPhotosYet")}
               </p>
             </div>
 
             {/* Basic Details */}
             <div className="mb-4">
-              <h2 className="text-sm font-semibold text-gray-700 mb-3">Basic Details</h2>
+              <h2 className="text-sm font-semibold text-gray-700 mb-3">{t("basicDetails")}</h2>
 
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Equipment Name</label>
+                  <label className="text-xs text-gray-500 mb-1 block">{t("equipmentName")}</label>
                   <input
                     type="text"
-                    placeholder="e.g. John Deere 5050E"
+                    placeholder={t("equipmentNamePlaceholder")}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 placeholder-gray-300 focus:outline-none focus:border-green-500 bg-white"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Category</label>
+                  <label className="text-xs text-gray-500 mb-1 block">{t("category")}</label>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-green-500 bg-white"
                   >
-                    <option value="">Select Category</option>
+                    <option value="">{t("selectCategory")}</option>
                     {ALL_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
@@ -280,28 +217,28 @@ const EquipmentPostingPage = ({ onPost, onNavigate, screen = "post" }) => {
 
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Brand</label>
+                  <label className="text-xs text-gray-500 mb-1 block">{t("brand")}</label>
                   <input
                     type="text"
-                    placeholder="e.g. Mahindra"
+                    placeholder={t("brandPlaceholder")}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 placeholder-gray-300 focus:outline-none focus:border-green-500 bg-white"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Model / Year</label>
+                  <label className="text-xs text-gray-500 mb-1 block">{t("modelYear")}</label>
                   <input
                     type="text"
-                    placeholder="e.g. 2023 Edition"
+                    placeholder={t("modelYearPlaceholder")}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 placeholder-gray-300 focus:outline-none focus:border-green-500 bg-white"
                   />
                 </div>
               </div>
 
               <div className="mb-3">
-                <label className="text-xs text-gray-500 mb-1 block">Full Description</label>
+                <label className="text-xs text-gray-500 mb-1 block">{t("fullDescription")}</label>
                 <textarea
-                  rows={3}
-                  placeholder="Tell potential buyers/renters about the history and maintenance of your equipment..."
+                  rows={6}
+                  placeholder={t("fullDescriptionPlaceholder")}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 placeholder-gray-300 focus:outline-none focus:border-green-500 resize-none bg-white"
                 />
               </div>
@@ -315,19 +252,20 @@ const EquipmentPostingPage = ({ onPost, onNavigate, screen = "post" }) => {
             {/* Equipment Condition */}
             <div className="mb-5">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                Equipment Condition
+                {t("equipmentCondition")}
               </h2>
               <div className="grid grid-cols-2 gap-2">
-                {["Brand New", "New", "Good", "Used"].map((c) => (
-                  <label key={c} onClick={() => setCondition(c)} className="flex items-center gap-2 cursor-pointer">
-                    <div
-                      className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
-                        condition === c ? "border-green-600" : "border-gray-300"
-                      }`}
-                    >
-                      {condition === c && <div className="w-2 h-2 rounded-full bg-green-600" />}
+                {[
+                  ["Brand New", t("brandNew")],
+                  ["New", t("conditionNew")],
+                  ["Good", t("conditionGood")],
+                  ["Used", t("conditionUsed")],
+                ].map(([val, label]) => (
+                  <label key={val} onClick={() => setCondition(val)} className="flex items-center gap-2 cursor-pointer">
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${condition === val ? "border-green-600" : "border-gray-300"}`}>
+                      {condition === val && <div className="w-2 h-2 rounded-full bg-green-600" />}
                     </div>
-                    <span className="text-xs text-gray-700">{c}</span>
+                    <span className="text-xs text-gray-700">{label}</span>
                   </label>
                 ))}
               </div>
@@ -336,40 +274,39 @@ const EquipmentPostingPage = ({ onPost, onNavigate, screen = "post" }) => {
             {/* Listing Intent */}
             <div className="mb-5">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                Listing Intent
+                {t("listingIntent")}
               </h2>
               <div className="flex rounded-lg overflow-hidden border border-gray-200">
-                {["Rent", "Sell", "Both"].map((intent) => (
+                {[
+                  ["Rent", t("intentRent")],
+                  ["Sell", t("intentSell")],
+                  ["Both", t("intentBoth")],
+                ].map(([val, label]) => (
                   <button
-                    key={intent}
-                    onClick={() => setListingIntent(intent)}
+                    key={val}
+                    onClick={() => setListingIntent(val)}
                     className={`flex-1 py-2 text-xs font-medium transition-colors ${
-                      listingIntent === intent
-                        ? "bg-green-700 text-white"
-                        : "bg-white text-gray-600 hover:bg-gray-50"
+                      listingIntent === val ? "bg-green-700 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
                     }`}
                   >
-                    {intent}
+                    {label}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Price / Day — Per Min & Per Max to match screenshot */}
+            {/* Price / Day */}
             <div className="mb-5">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                Price/Day (₹)
+                {t("pricePerDay")}
               </h2>
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <label className="text-xs text-gray-400 mb-1 block">Per Min</label>
+                  <label className="text-xs text-gray-400 mb-1 block">{t("perMin")}</label>
                   <div className="flex items-center border border-gray-200 rounded-lg bg-white focus-within:border-green-500">
                     <span className="pl-2 text-sm text-gray-400">₹</span>
                     <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={priceMin}
+                      type="number" min="0" step="0.01" value={priceMin}
                       onChange={(e) => setPriceMin(e.target.value)}
                       placeholder="0.00"
                       className="flex-1 px-1.5 py-2 text-sm text-gray-700 bg-transparent focus:outline-none w-full"
@@ -377,14 +314,11 @@ const EquipmentPostingPage = ({ onPost, onNavigate, screen = "post" }) => {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <label className="text-xs text-gray-400 mb-1 block">Per Max</label>
+                  <label className="text-xs text-gray-400 mb-1 block">{t("perMax")}</label>
                   <div className="flex items-center border border-gray-200 rounded-lg bg-white focus-within:border-green-500">
                     <span className="pl-2 text-sm text-gray-400">₹</span>
                     <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={priceMax}
+                      type="number" min="0" step="0.01" value={priceMax}
                       onChange={(e) => setPriceMax(e.target.value)}
                       placeholder="0.00"
                       className="flex-1 px-1.5 py-2 text-sm text-gray-700 bg-transparent focus:outline-none w-full"
@@ -398,7 +332,7 @@ const EquipmentPostingPage = ({ onPost, onNavigate, screen = "post" }) => {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                  Storage Location
+                  {t("storageLocation")}
                 </h2>
                 <button
                   onClick={handleUseCurrentLocation}
@@ -407,7 +341,7 @@ const EquipmentPostingPage = ({ onPost, onNavigate, screen = "post" }) => {
                   <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current">
                     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
                   </svg>
-                  Use Current
+                  {t("useCurrent")}
                 </button>
               </div>
 
@@ -417,18 +351,17 @@ const EquipmentPostingPage = ({ onPost, onNavigate, screen = "post" }) => {
                 </p>
               )}
 
-              {/* State + District side by side like screenshot */}
               <div className="flex gap-2 mb-2">
                 <select
                   value={state}
                   onChange={(e) => { setState(e.target.value); setDistrict(""); setCustomState(""); setCustomDistrict(""); }}
                   className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs text-gray-600 focus:outline-none bg-white"
                 >
-                  <option value="">Select State</option>
+                  <option value="">{t("selectState")}</option>
                   {Object.entries(STATE_LABELS).map(([val, label]) => (
                     <option key={val} value={val}>{label}</option>
                   ))}
-                  <option value="other">Other (type below)</option>
+                  <option value="other">{t("otherTypeBelow")}</option>
                 </select>
 
                 {!isOtherState && districts.length > 0 ? (
@@ -437,13 +370,13 @@ const EquipmentPostingPage = ({ onPost, onNavigate, screen = "post" }) => {
                     onChange={(e) => setDistrict(e.target.value)}
                     className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs text-gray-600 focus:outline-none bg-white"
                   >
-                    <option value="">Select District</option>
+                    <option value="">{t("selectDistrict")}</option>
                     {districts.map((d) => <option key={d} value={d}>{d}</option>)}
                   </select>
                 ) : (
                   <input
                     type="text"
-                    placeholder={isOtherState ? "Type district..." : "Select District"}
+                    placeholder={isOtherState ? t("typeDistrict") : t("selectDistrict")}
                     disabled={!isOtherState && !state}
                     value={isOtherState ? customDistrict : district}
                     onChange={(e) => isOtherState ? setCustomDistrict(e.target.value) : setDistrict(e.target.value)}
@@ -455,23 +388,22 @@ const EquipmentPostingPage = ({ onPost, onNavigate, screen = "post" }) => {
               {isOtherState && (
                 <input
                   type="text"
-                  placeholder="Type your state..."
+                  placeholder={t("typeState")}
                   value={customState}
                   onChange={(e) => setCustomState(e.target.value)}
                   className="w-full mb-2 border border-green-300 rounded-lg px-2 py-2 text-xs text-gray-700 placeholder-gray-300 focus:outline-none focus:border-green-500"
                 />
               )}
 
-              {/* Village + Pincode */}
               <div className="flex gap-2 mb-2">
                 <input
                   type="text"
-                  placeholder="Village Name"
+                  placeholder={t("villageName")}
                   className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs text-gray-600 placeholder-gray-300 focus:outline-none focus:border-green-500"
                 />
                 <input
                   type="text"
-                  placeholder="Pincode"
+                  placeholder={t("pincode")}
                   className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs text-gray-600 placeholder-gray-300 focus:outline-none focus:border-green-500"
                 />
               </div>
@@ -481,8 +413,7 @@ const EquipmentPostingPage = ({ onPost, onNavigate, screen = "post" }) => {
                 <div
                   className="absolute inset-0 opacity-20"
                   style={{
-                    backgroundImage:
-                      "linear-gradient(#b0c4a0 1px, transparent 1px), linear-gradient(90deg, #b0c4a0 1px, transparent 1px)",
+                    backgroundImage: "linear-gradient(#b0c4a0 1px, transparent 1px), linear-gradient(90deg, #b0c4a0 1px, transparent 1px)",
                     backgroundSize: "20px 20px",
                   }}
                 />
@@ -494,8 +425,6 @@ const EquipmentPostingPage = ({ onPost, onNavigate, screen = "post" }) => {
               </div>
             </div>
           </div>
-          {/* ══ END RIGHT COLUMN ══════════════════════════════════════ */}
-
         </div>
 
         {/* ══ FULL-WIDTH BOTTOM SECTION ════════════════════════════ */}
@@ -503,26 +432,20 @@ const EquipmentPostingPage = ({ onPost, onNavigate, screen = "post" }) => {
         {/* Available Now toggle */}
         <div className="bg-white border border-gray-100 rounded-xl px-4 py-3 flex items-center justify-between mb-3 mt-4">
           <div>
-            <p className="text-sm font-medium text-gray-700">Available Now</p>
-            <p className="text-xs text-gray-400">Turn off to set future date</p>
+            <p className="text-sm font-medium text-gray-700">{t("availableNow")}</p>
+            <p className="text-xs text-gray-400">{t("availableNowSub")}</p>
           </div>
           <button
             onClick={() => setAvailableNow(!availableNow)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              availableNow ? "bg-green-600" : "bg-gray-300"
-            }`}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${availableNow ? "bg-green-600" : "bg-gray-300"}`}
           >
-            <span
-              className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                availableNow ? "translate-x-6" : "translate-x-1"
-              }`}
-            />
+            <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${availableNow ? "translate-x-6" : "translate-x-1"}`} />
           </button>
         </div>
 
         {/* Contact Information */}
         <div className="bg-white border border-gray-100 rounded-xl px-4 py-3 mb-4">
-          <p className="text-xs text-gray-500 mb-2">Contact Information</p>
+          <p className="text-xs text-gray-500 mb-2">{t("contactInformation")}</p>
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
               <svg viewBox="0 0 24 24" className="w-4 h-4 text-green-700 fill-current">
@@ -531,34 +454,35 @@ const EquipmentPostingPage = ({ onPost, onNavigate, screen = "post" }) => {
             </div>
             <span className="text-sm text-gray-700 flex-1">
               +91 98765 43210{" "}
-              <span className="text-xs text-gray-400 ml-1">Primary number</span>
+              <span className="text-xs text-gray-400 ml-1">{t("primaryNumber")}</span>
             </span>
             <button className="text-xs text-green-700 font-semibold border border-green-300 rounded-lg px-3 py-1 hover:bg-green-50">
-              Verify
+              {t("verify")}
             </button>
           </div>
           <button className="mt-3 w-full text-sm text-green-700 font-medium flex items-center justify-center gap-1 hover:underline">
             <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
               <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
             </svg>
-            Add Alternate Number
+            {t("addAlternateNumber")}
           </button>
         </div>
 
         {/* Post Equipment button */}
         <button
-          onClick={onPost}
+          onClick={() => navigate("/post-success")}
           className="w-full bg-green-700 hover:bg-green-800 text-white font-semibold rounded-xl py-3.5 flex items-center justify-center gap-2 transition-colors shadow-sm"
         >
-          Post Equipment
+          {t("postEquipment")}
           <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
             <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
           </svg>
         </button>
         <p className="text-center text-xs text-gray-400 mt-2 mb-4">
-          By posting, you agree to Farmease's{" "}
-          <span className="underline cursor-pointer">Terms of Service</span> and{" "}
-          <span className="underline cursor-pointer">Community Guidelines</span>
+          {t("postingAgreement")}{" "}
+          <span className="underline cursor-pointer">{t("termsOfService")}</span>{" "}
+          {t("and")}{" "}
+          <span className="underline cursor-pointer">{t("communityGuidelines")}</span>
         </p>
 
       </div>

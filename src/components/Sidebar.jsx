@@ -1,54 +1,83 @@
-import { useLocation, useNavigate } from "react-router-dom";
-import {
-  FiHome,
-  FiSearch,
-  FiPlus,
-  FiBell,
-  FiUser,
-} from "react-icons/fi";
+import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Home, Search, PlusCircle, Bell, User } from 'lucide-react';
 
 const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const menu = [
-    { icon: <FiHome />, path: "/" },
-    { icon: <FiSearch />, path: "/equipments" },
-    { icon: <FiPlus />, path: "/add" },
-    { icon: <FiBell />, path: "/notifications" },
-    { icon: <FiUser />, path: "/login" },
-  ];
+  // Helper function to check if the icon is for the current page
+  const isActive = (path) => location.pathname === path;
 
   return (
-    <div className="fixed left-0 top-0 h-screen w-20 bg-white shadow-sm flex flex-col items-center justify-center z-50">
+    <div className="fixed left-0 top-0 h-screen w-20 bg-white border-r border-gray-100 flex flex-col items-center py-8 space-y-12 z-50">
 
-      {/* Logo / Space */}
-      
+      {/* Home Icon - Dashboard */}
+      <div
+  onClick={() => navigate('/home')}
+  className={`cursor-pointer transition-all hover:scale-110 ${
+    isActive('/home') || isActive('/marketplace')
+      ? 'text-[#1A4D2E]'
+      : 'text-gray-400 hover:text-[#1A4D2E]'
+  }`}
+>
+  <Home
+    size={28}
+    strokeWidth={
+      isActive('/home') || isActive('/marketplace') ? 3 : 2
+    }
+  />
+</div>
 
-      {/* Menu */}
-      <div className="flex flex-col gap-6">
-        {menu.map((item, i) => {
-          const isActive = location.pathname === item.path;
+      {/* Search Icon - Dedicated Search Screen */}
+      <div
+  onClick={() => navigate('/search')}
+  className={`cursor-pointer transition-all hover:scale-110 ${
+    isActive('/search')
+      ? 'text-[#1A4D2E]'
+      : 'text-gray-400 hover:text-[#1A4D2E]'
+  }`}
+>
+  <Search
+    size={28}
+    strokeWidth={isActive('/search') ? 3 : 2}
+  />
+</div>
 
-          return (
-            <button
-              key={i}
-              onClick={() => navigate(item.path)}
-              className={`relative p-3 rounded-xl transition-all duration-200 group ${
-                isActive
-                  ? "bg-green-100 text-green-600"
-                  : "text-gray-500 hover:bg-gray-100"
-              }`}
-            >
-              <span className="text-xl">{item.icon}</span>
+      {/* Add Icon - List Equipment */}
+      <div
+        onClick={() => navigate('/list-equipment')}
+        className={`cursor-pointer transition-all hover:scale-110 ${
+          isActive('/list-equipment') ? 'text-[#1A4D2E]' : 'text-gray-400 hover:text-[#1A4D2E]'
+        }`}
+      >
+        <PlusCircle size={28} strokeWidth={isActive('/list-equipment') ? 3 : 2} />
+      </div>
 
-              {/* Active Indicator Line */}
-              {isActive && (
-                <span className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-6 bg-green-600 rounded-r"></span>
-              )}
-            </button>
-          );
-        })}
+      {/* Notifications Icon */}
+      <div
+        onClick={() => navigate('/notifications')}
+        className={`cursor-pointer transition-all hover:scale-110 ${
+          isActive('/notifications') ? 'text-[#1A4D2E]' : 'text-gray-400 hover:text-[#1A4D2E]'
+        }`}
+      >
+        <Bell size={28} strokeWidth={isActive('/notifications') ? 3 : 2} />
+      </div>
+
+      {/* Profile Icon - Pushed to bottom */}
+      <div
+        onClick={() => navigate('/profile')}
+        className={`cursor-pointer transition-all hover:scale-110 mt-auto ${
+          isActive('/profile') || 
+          isActive('/edit-profile') || 
+          isActive('/language') || 
+          isActive('/saved-equipment') || 
+          isActive('/my-bookings') || 
+          isActive('/my-postings')
+            ? 'text-[#1A4D2E]' : 'text-gray-400 hover:text-[#1A4D2E]'
+        }`}
+      >
+        <User size={28} strokeWidth={isActive('/profile') ? 3 : 2} />
       </div>
     </div>
   );
