@@ -124,8 +124,6 @@ const Signup = () => {
     }
   };
 
-  const currentDistricts = ALL_DISTRICTS[formData.state] || [];
-
   return (
     <div className="flex min-h-screen bg-white font-sans">
       {/* LEFT SIDE */}
