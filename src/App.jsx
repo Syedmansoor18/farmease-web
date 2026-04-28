@@ -163,7 +163,7 @@ export default function App() {
         <Route path="/saved-equipment" element={<SavedEquipment />} />
         <Route path="/my-bookings" element={<MyBookings />} />
         <Route path="/my-postings" element={<MyPostings />} />
-        <Route path="/hero" element={<Hero />} />
+        
 
       </Routes>
     </BrowserRouter>
