@@ -1,7 +1,8 @@
 import { INDIA_DATA, STATE_NAMES } from '../data/indianStates';
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from "../supabaseClient"; 
+import { supabase } from "../supabaseClient";
+
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -30,6 +31,11 @@ const Signup = () => {
     }
     if (name === "kisanId") {
       if (value.length <= 10) setFormData({ ...formData, [name]: value.toUpperCase() });
+      return;
+    }
+    // RESET DISTRICT IF STATE CHANGES
+    if (name === "state") {
+      setFormData({ ...formData, state: value, district: "" });
       return;
     }
     setFormData({ ...formData, [name]: value });
@@ -74,7 +80,6 @@ const Signup = () => {
 
       if (authError) throw authError;
 
-      // 2. Insert profile data into the Supabase profiles table
       const { error: profileError } = await supabase
         .from('profiles')
         .insert([
@@ -112,18 +117,18 @@ const Signup = () => {
       console.log("Holy Trinity Complete: User, Profile, and Farmer created.");
       alert("Account created and synced successfully ✅");
       navigate("/login");
-
     } catch (err) {
-      console.error(err);
       alert(err.message);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const currentDistricts = ALL_DISTRICTS[formData.state] || [];
+
   return (
     <div className="flex min-h-screen bg-white font-sans">
-      {/* LEFT SIDE: Image + Text Overlay */}
+      {/* LEFT SIDE */}
       <div className="hidden lg:flex w-1/2 bg-[#006F1D] relative overflow-hidden">
         <img
           src="/signup-bg.png"
@@ -140,7 +145,7 @@ const Signup = () => {
         </div>
       </div>
 
-      {/* RIGHT SIDE: Form */}
+      {/* RIGHT SIDE */}
       <div className="w-full lg:w-1/2 p-8 md:p-16 overflow-y-auto">
         <div className="max-w-xl mx-auto">
           <header className="mb-10 text-center lg:text-left">
