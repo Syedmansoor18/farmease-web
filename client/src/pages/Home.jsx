@@ -15,9 +15,10 @@ const Home = () => {
 
   const handleSearch = (e) => {
     if (e.key === 'Enter' && searchQuery.trim() !== "") {
-      navigate(`/marketplace?search=${encodeURIComponent(searchQuery)}`);
+      navigate(`/search?query=${encodeURIComponent(searchQuery)}`); // 🚨 Changed to /search?query=
     }
   };
+  
 
   const handleLocationClick = () => {
     if ("geolocation" in navigator) {
@@ -61,7 +62,12 @@ const Home = () => {
 
           <div className="flex items-center gap-4">
             <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#006F1D] transition-colors" size={20} />
+              {/* 🚨 Added cursor-pointer and onClick so clicking the icon works! */}
+              <Search 
+                  onClick={() => searchQuery.trim() !== "" && navigate(`/search?query=${encodeURIComponent(searchQuery)}`)} // 🚨 Changed here too
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#006F1D] transition-colors cursor-pointer hover:scale-110" 
+                  size={20} 
+                />
               <input
                 type="text"
                 placeholder={t("searchEquipment")}

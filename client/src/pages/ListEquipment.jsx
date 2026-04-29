@@ -395,7 +395,7 @@ const EquipmentPostingPage = () => {
                 Listing Intent
               </h2>
               <div className="flex rounded-lg overflow-hidden border border-gray-200">
-                {["Rent", "Sell", "Both"].map((intent) => (
+                {["Rent", "Sell"].map((intent) => (
                   <button
                     key={intent}
                     onClick={() => setListingIntent(intent)}
