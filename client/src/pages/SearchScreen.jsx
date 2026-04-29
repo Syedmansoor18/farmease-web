@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom"; // 🚨 Added useSearchParams
 import Sidebar from "../components/Sidebar";
 import { useLanguage } from "../context/LanguageContext";
-import { supabase } from "../supabaseClient"; // 🚨 Added Supabase
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 const SearchIcon = () => (
@@ -115,31 +114,28 @@ export default function SearchScreen() {
   const [sortBy, setSortBy] = useState("recommended");
 
   // 🚨 THE SUPABASE SEARCH ENGINE
-  const fetchEquipment = async () => {
+const fetchEquipment = async () => {
     setIsLoading(true);
     try {
-      let query = supabase.from('equipment_list').select('*').eq('is_available', true);
+      // 🚨 We now hit our LOCAL server on Port 5000
+      const baseUrl = "http://localhost:5000/api/search";
+      
+      // We turn our state variables into a URL query string
+      const params = new URLSearchParams({
+        query: search,
+        mode: mode,
+        state: selectedState,
+        category: selectedCategory
+      });
 
-      // Filter by Intent (Parsing from description)
-      if (mode === "rent") query = query.ilike('description', '%Listing Intent: Rent%');
-      if (mode === "buy") query = query.ilike('description', '%Listing Intent: Sell%');
+      const response = await fetch(`${baseUrl}?${params}`);
+      const data = await response.json();
 
-      // Filter by State
-      if (selectedState !== "All States") query = query.eq('state', selectedState);
+      if (!response.ok) throw new Error(data.error || "Failed to fetch");
 
-      // Filter by Category
-      if (selectedCategory !== "all") query = query.ilike('type', `%${selectedCategory}%`);
-
-      // 🚨 Filter by Text (Name OR Type OR Description)
-      if (search.trim()) {
-        query = query.or(`name.ilike.%${search}%,type.ilike.%${search}%,description.ilike.%${search}%`);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      // Format the DB data for the UI
+      // Format the DB data for the UI so the cards look right
       const formattedData = data.map(eq => {
+        // We parse the 'Listing Intent' out of the description we saved earlier
         const descMatch = eq.description?.match(/Listing Intent: (.*)/);
         const intent = descMatch ? descMatch[1].trim() : "Rent";
         
