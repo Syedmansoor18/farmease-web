@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useLanguage } from "../context/LanguageContext"; 
-import { supabase } from "../supabaseClient"; // 🚨 IMPORT SUPABASE
+import { supabase } from "../supabaseClient";
 
 // We leave the dummy requests here for now until we build the Booking Engine
 const farmerRequests = [
@@ -96,32 +96,19 @@ export default function MyPostings() {
     try {
       setIsLoading(true);
       
-      // 1. Get logged-in user
+      // 1. Get logged-in user (This stays on the frontend because it handles secure browser cookies!)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // 2. Get their Farmer Profile ID
-      const { data: farmerData, error: farmerError } = await supabase
-        .from('farmers')
-        .select('id')
-        .eq('profile_id', user.id)
-        .single();
+      // 2. Ask our Node server to do all the heavy lifting
+      const response = await fetch(`http://localhost:5000/api/my-postings?user_id=${user.id}`);
+      const equipmentData = await response.json();
 
-      if (farmerError || !farmerData) throw farmerError;
+      if (!response.ok) throw new Error(equipmentData.error || "Failed to fetch");
 
-      // 3. Fetch all their equipment
-      const { data: equipmentData, error: equipError } = await supabase
-        .from('equipment_list')
-        .select('*')
-        .eq('owner_id', farmerData.id)
-        .order('created_at', { ascending: false });
-
-      if (equipError) throw equipError;
-
-      // 4. Map the DB data into our UI format
+      // 3. Map the DB data into our UI format (Keeping your awesome regex unpacking!)
       const formattedPostings = equipmentData.map(eq => {
         
-        // Since we packed brand & model into the description, let's unpack it for the Edit button!
         const descMatch = eq.description?.match(/Brand: (.*?)\| Model: (.*?)\n\n([\s\S]*?)\n\nListing Intent: (.*)/);
         const parsedBrand = descMatch ? descMatch[1].trim() : "";
         const parsedModel = descMatch ? descMatch[2].trim() : "";
@@ -130,18 +117,15 @@ export default function MyPostings() {
 
         return {
           id: eq.id,
-          nameKey: eq.name, // Using actual name instead of a translation key
+          nameKey: eq.name, 
           price: `₹ ${eq.price_per_day} / day`,
           statusKey: eq.is_available ? "statusAvailable" : "statusInactive",
           postedOnKey: new Date(eq.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
-          views: Math.floor(Math.random() * 50), // Dummy stats until we track them
+          views: Math.floor(Math.random() * 50), 
           requests: Math.floor(Math.random() * 5),
-          img: eq.image_url || "https://images.unsplash.com/photo-1592982537447-6f23b361bbcc?w=400&q=80", // 🚨 Uses real image, falls back to a generic tractor if empty
-
-
+          img: eq.image_url || "https://images.unsplash.com/photo-1592982537447-6f23b361bbcc?w=400&q=80",
           type: eq.is_available ? "view" : "activate",
           
-          // 🚨 We store the raw unpacked data here so the "Edit" button can use it
           editPayload: {
             id: eq.id,
             equipmentName: eq.name,
@@ -157,16 +141,16 @@ export default function MyPostings() {
             condition: eq.condition === 'excellent' ? 'Brand New' : (eq.condition === 'fair' ? 'Used' : 'Good'),
             availableNow: eq.is_available,
             listingIntent: parsedIntent,
-            image_url: eq.image_url, // 🚨 Ensure the edit page knows the image exists
+            image_url: eq.image_url, 
             mainPhoto: eq.image_url ? { url: eq.image_url, name: "cloud-image" } : null
           }
         };
       });
 
-      setPostings(formattedPostings);
-
+      // Assuming your state hook is named setMyEquipment or similar
+      setPostings(formattedPostings); 
     } catch (error) {
-      console.error("Error fetching postings:", error);
+      console.error("Error fetching my equipment:", error);
     } finally {
       setIsLoading(false);
     }
