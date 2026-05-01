@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useLanguage } from "../context/LanguageContext";
+
 export default function PaymentPage() {
   const navigate = useNavigate();
   const [paymentMethod, setPaymentMethod] = useState("upi");
@@ -12,26 +13,53 @@ export default function PaymentPage() {
   const { t } = useLanguage();
 
   const handlePayment = () => {
-    setShowPopup(true);
-    setProgress(0);
-    setIsSuccess(false);
+    // 1. Check if Razorpay script is loaded in index.html
+    if (!window.Razorpay) {
+      alert("Razorpay SDK failed to load. Please check your internet connection.");
+      return;
+    }
 
-    let value = 0;
+    // 2. Configure Razorpay Options
+    const options = {
+      key: import.meta.env.VITE_RAZORPAY_KEY, // Your Verified Test Key
+      amount: 6000 * 100, // Total Amount: ₹6,000 (Converted to Paise: 600000)
+      currency: "INR",
+      name: "FarmEase",
+      description: t("rentalSummary"),
+      image: "https://cdn-icons-png.flaticon.com/512/3063/3063822.png", // Optional Tractor Icon
+      handler: function (response) {
+        // 3. THIS RUNS ON SUCCESSFUL PAYMENT
+        console.log("Razorpay Payment ID:", response.razorpay_payment_id);
 
-    const interval = setInterval(() => {
-      value += 10;
-      setProgress(value);
+        // Trigger your custom success popup!
+        setShowPopup(true);
+        setIsSuccess(true);
+        setProgress(100);
 
-      if (value >= 100) {
-        clearInterval(interval);
+        // Wait 2 seconds so the user sees your checkmark, then redirect
         setTimeout(() => {
-          setIsSuccess(true);
-          setTimeout(() => {
-            navigate("/booking-success");
-          }, 2000);
-        }, 300);
-      }
-    }, 200);
+          navigate("/booking-success");
+        }, 2000);
+      },
+      prefill: {
+        name: localStorage.getItem('userName') || "FarmEase Farmer",
+        email: "farmer@farmease.com",
+        contact: "9999999999", // Test phone number
+      },
+      theme: {
+        color: "#16a34a", // Matches your Tailwind bg-green-600
+      },
+    };
+
+    // 4. Open the Razorpay Popup
+    const rzp = new window.Razorpay(options);
+
+    // Handle user closing the popup or payment failure
+    rzp.on('payment.failed', function (response){
+      alert("Payment Failed: " + response.error.description);
+    });
+
+    rzp.open();
   };
 
   return (
@@ -204,6 +232,7 @@ export default function PaymentPage() {
              {t("pay")}
             </button>
 
+            {/* YOUR CUSTOM POPUP - NOW ONLY SHOWS ON SUCCESS */}
             {showPopup && (
               <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
                 <div className="bg-white rounded-2xl p-6 w-[320px] text-center shadow-xl">

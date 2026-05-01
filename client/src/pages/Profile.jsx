@@ -287,7 +287,7 @@ export default function Profile() {
           <SettingsGroup title={t("helpAndSupport")} items={helpSupport} />
 
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/hero")}
             className="w-full border border-green-600 text-green-700 font-medium rounded-xl py-3 text-sm hover:bg-green-600 hover:text-white transition-colors duration-200"
           >
             {t("logout")}

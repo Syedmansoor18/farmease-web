@@ -21,9 +21,10 @@ function RequestPopup({ posting, onClose, t }) {
         className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6"
         onClick={e => e.stopPropagation()}
       >
+        {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-gray-900">
-            {t("requestsFor")} {posting.nameKey} 
+            {t("requestsFor")} {t(posting.nameKey)}
           </h2>
           <button
             onClick={onClose}
@@ -33,14 +34,15 @@ function RequestPopup({ posting, onClose, t }) {
           </button>
         </div>
 
+        {/* Equipment Info */}
         <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 mb-5">
           <img
             src={posting.img}
-            alt={posting.nameKey}
+            alt={t(posting.nameKey)}
             className="w-16 h-12 rounded-lg object-cover"
           />
           <div>
-            <p className="font-bold text-sm text-gray-900">{posting.nameKey}</p>
+            <p className="font-bold text-sm text-gray-900">{t(posting.nameKey)}</p>
             <p className="text-green-700 text-sm font-semibold">{posting.price}</p>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 uppercase">
               {t(posting.statusKey)}
@@ -48,6 +50,7 @@ function RequestPopup({ posting, onClose, t }) {
           </div>
         </div>
 
+        {/* Farmer Requests */}
         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
           {t("farmerRequests")} ({farmerRequests.length})
         </p>
@@ -81,8 +84,6 @@ function RequestPopup({ posting, onClose, t }) {
 export default function MyPostings() {
   const navigate = useNavigate();
   const { t } = useLanguage();
-  
-  // 🚨 UI States
   const [postings, setPostings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activePopup, setActivePopup] = useState(null);
@@ -159,21 +160,7 @@ export default function MyPostings() {
   // 🚨 LIVE DELETE COMMAND
   const handleDelete = async (e, id) => {
     e.stopPropagation();
-    const isConfirmed = window.confirm("Are you sure you want to delete this listing?");
-    if (!isConfirmed) return;
-
-    try {
-      // Delete from Supabase
-      const { error } = await supabase.from('equipment_list').delete().eq('id', id);
-      if (error) throw error;
-      
-      // Remove from UI instantly
-      setPostings(prev => prev.filter(p => p.id !== id));
-      
-    } catch (err) {
-      console.error("Delete Error:", err);
-      alert("Failed to delete the listing.");
-    }
+    setPostings(prev => prev.filter(p => p.id !== id));
   };
 
   const handleViewRequest = (e, posting) => {

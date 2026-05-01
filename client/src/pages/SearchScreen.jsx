@@ -20,8 +20,8 @@ const ChevronDownIcon = () => (
 // ── Data ──────────────────────────────────────────────────────────────────────
 const INDIAN_STATES = [
   "All States", "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
-  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", 
-  "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", 
+  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala",
+  "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland",
   "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura",
   "Uttar Pradesh", "Uttarakhand", "West Bengal",
 ];
@@ -98,7 +98,7 @@ function EquipmentCard({ item, t }) {
 export default function SearchScreen() {
   const { t } = useLanguage();
   const [searchParams] = useSearchParams();
-  
+
   // 🚨 Catch the URL query on load
   const initialQuery = searchParams.get("query") || "";
 
@@ -138,7 +138,7 @@ const fetchEquipment = async () => {
         // We parse the 'Listing Intent' out of the description we saved earlier
         const descMatch = eq.description?.match(/Listing Intent: (.*)/);
         const intent = descMatch ? descMatch[1].trim() : "Rent";
-        
+
         return {
           id: eq.id,
           name: eq.name,
@@ -192,7 +192,7 @@ const fetchEquipment = async () => {
               className="w-full py-3 pl-11 pr-4 border-2 border-gray-200 rounded-full text-sm outline-none bg-white focus:border-green-700 transition-colors"
             />
           </div>
-          <button 
+          <button
             onClick={fetchEquipment} // Fetch on button click
             className="bg-green-800 hover:bg-green-900 transition-colors text-white border-none rounded-full px-6 py-3 text-sm font-semibold cursor-pointer flex items-center gap-2"
           >

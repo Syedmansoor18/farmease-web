@@ -1,9 +1,11 @@
 import { useState, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom"; 
+import { useNavigate, useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { supabase } from "../supabaseClient"; // Adjust path if needed
 // 🚨 IMPORTING OUR NEW DATA STORE:
 import { INDIA_DATA, STATE_NAMES } from "../data/indianStates";
+// 🌐 IMPORTING LANGUAGE CONTEXT
+import { useLanguage } from "../context/LanguageContext";
 
 const ALL_CATEGORIES = [
   "Tractor","Harvester","Combine Harvester","Rotavator","Cultivator",
@@ -15,7 +17,10 @@ const ALL_CATEGORIES = [
 /* ─── Main Page ───────────────────────────────────────────────── */
 const EquipmentPostingPage = () => {
   const navigate = useNavigate();
-  const location = useLocation(); 
+  const location = useLocation();
+
+  // 🌐 Initialize Language Hook
+  const { t } = useLanguage();
 
   const editData = location.state || {};
 
@@ -31,12 +36,12 @@ const EquipmentPostingPage = () => {
   const [mainPhoto, setMainPhoto]         = useState(editData.mainPhoto || null);
   const [extraPhotos, setExtraPhotos]     = useState(editData.extraPhotos || []);
   const [dragOver, setDragOver]           = useState(false);
-  
+
   const [state, setState]                 = useState(editData.state || "");
   const [district, setDistrict]           = useState(editData.district || "");
   const [customState, setCustomState]     = useState(editData.customState || "");
   const [customDistrict, setCustomDistrict] = useState(editData.customDistrict || "");
-  
+
   const [equipmentName, setEquipmentName] = useState(editData.equipmentName || "");
   const [brand, setBrand]                 = useState(editData.brand || "");
   const [modelYear, setModelYear]         = useState(editData.modelYear || "");
@@ -164,12 +169,12 @@ const EquipmentPostingPage = () => {
 // ─── DB SUBMISSION LOGIC (SECURE CLIENT-SERVER VERSION) ───
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    showToast(recordId ? "Updating listing..." : "Preparing listing...");
+    showToast(recordId ? (t('updatingListing') || "Updating listing...") : (t('preparingListing') || "Preparing listing..."));
 
     try {
       // 1. GET USER AUTH (Stays on frontend)
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("You must be logged in to post equipment.");
+      if (!user) throw new Error(t('mustBeLoggedIn') || "You must be logged in to post equipment.");
 
       // 2. FORMAT THE DATA VARIABLES
       let dbCondition = 'good';
@@ -182,7 +187,7 @@ const EquipmentPostingPage = () => {
       let finalImageUrl = editData.image_url || null; // Keep existing image if editing
 
       if (mainPhoto && mainPhoto.rawFile) {
-        showToast("Uploading image to cloud...");
+        showToast(t('uploadingImage') || "Uploading image to cloud...");
         const fileExt = mainPhoto.name.split('.').pop();
         const fileName = `${Math.random()}.${fileExt}`;
         const filePath = `${user.id}/${fileName}`; 
@@ -191,7 +196,7 @@ const EquipmentPostingPage = () => {
           .from('equipment-images')
           .upload(filePath, mainPhoto.rawFile);
 
-        if (uploadError) throw new Error("Image upload failed: " + uploadError.message);
+        if (uploadError) throw new Error((t('imageUploadFailed') || "Image upload failed: ") + uploadError.message);
 
         const { data: { publicUrl } } = supabase.storage
           .from('equipment-images')
@@ -235,7 +240,7 @@ const EquipmentPostingPage = () => {
       // Update local state so if they click post again without leaving, it updates
       setRecordId(savedRecord.id); 
 
-      showToast(recordId ? "Equipment updated successfully!" : "Equipment posted successfully!");
+      showToast(recordId ? (t('equipmentUpdated') || "Equipment updated successfully!") : (t('equipmentPosted') || "Equipment posted successfully!"));
 
       // Navigate to success screen
       navigate("/post-success", { 
@@ -246,7 +251,7 @@ const EquipmentPostingPage = () => {
           listingIntent, availableNow, mainPhoto, extraPhotos,
           displayState: state === 'other' ? customState : state,
           displayDistrict: district || customDistrict
-        } 
+        }
       });
 
     } catch (error) {
@@ -260,7 +265,7 @@ const EquipmentPostingPage = () => {
 
   return (
     <div className="bg-gray-50 min-h-screen flex" style={{ maxWidth: "100vw", overflowX: "hidden" }}>
-      
+
       <Sidebar />
 
       <div className="flex-1 min-w-0 py-5 px-5 ml-20">
@@ -271,7 +276,7 @@ const EquipmentPostingPage = () => {
 
             {/* Media Gallery */}
             <div className="mb-5">
-              <h2 className="text-sm font-semibold text-gray-700 mb-3">Media Gallery</h2>
+              <h2 className="text-sm font-semibold text-gray-700 mb-3">{t('mediaGallery') || "Media Gallery"}</h2>
 
               <input ref={mainInputRef}  type="file" accept="image/*"          className="hidden" onChange={(e) => handleMainFiles(e.target.files)} />
               <input ref={extraInputRef} type="file" accept="image/*" multiple  className="hidden" onChange={(e) => handleExtraFiles(e.target.files)} />
@@ -305,7 +310,7 @@ const EquipmentPostingPage = () => {
                         onClick={(e) => { e.stopPropagation(); mainInputRef.current.click(); }}
                         className="absolute bottom-0 inset-x-0 bg-black/40 text-white text-xs py-1 text-center"
                       >
-                        Change Photo
+                        {t('changePhoto') || "Change Photo"}
                       </button>
                     </>
                   ) : (
@@ -313,8 +318,8 @@ const EquipmentPostingPage = () => {
                       <svg viewBox="0 0 24 24" className="w-10 h-10 text-green-600 mb-2 fill-current">
                         <path d="M19.35 10.04A7.49 7.49 0 0012 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 000 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" />
                       </svg>
-                      <span className="text-sm text-green-700 font-medium">Upload Main Photo</span>
-                      <span className="text-xs text-green-500 mt-1 text-center px-3">Drag & Drop or Click</span>
+                      <span className="text-sm text-green-700 font-medium">{t('uploadMainPhoto') || "Upload Main Photo"}</span>
+                      <span className="text-xs text-green-500 mt-1 text-center px-3">{t('dragDropOrClick') || "Drag & Drop or Click"}</span>
                     </>
                   )}
                 </div>
@@ -354,34 +359,34 @@ const EquipmentPostingPage = () => {
 
               <p className="text-xs text-gray-400 mt-2">
                 {mainPhoto
-                  ? `1 main + ${extraPhotos.length} additional photo${extraPhotos.length !== 1 ? "s" : ""}`
-                  : "No photos uploaded yet — click or drag an image above"}
+                  ? `1 ${t('main') || "main"} + ${extraPhotos.length} ${t('additionalPhotos') || "additional photo(s)"}`
+                  : (t('noPhotosUploaded') || "No photos uploaded yet — click or drag an image above")}
               </p>
             </div>
 
             {/* Basic Details */}
             <div className="mb-4">
-              <h2 className="text-sm font-semibold text-gray-700 mb-3">Basic Details</h2>
+              <h2 className="text-sm font-semibold text-gray-700 mb-3">{t('basicDetails') || "Basic Details"}</h2>
 
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Equipment Name</label>
+                  <label className="text-xs text-gray-500 mb-1 block">{t('equipmentName') || "Equipment Name"}</label>
                   <input
                     type="text"
                     value={equipmentName}
                     onChange={(e) => setEquipmentName(e.target.value)}
-                    placeholder="e.g. John Deere 5050E"
+                    placeholder={t('egJohnDeere') || "e.g. John Deere 5050E"}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 placeholder-gray-300 focus:outline-none focus:border-green-500 bg-white"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Category</label>
+                  <label className="text-xs text-gray-500 mb-1 block">{t('category') || "Category"}</label>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-green-500 bg-white"
                   >
-                    <option value="">Select Category</option>
+                    <option value="">{t('selectCategory') || "Select Category"}</option>
                     {ALL_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
@@ -389,34 +394,34 @@ const EquipmentPostingPage = () => {
 
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Brand</label>
+                  <label className="text-xs text-gray-500 mb-1 block">{t('brand') || "Brand"}</label>
                   <input
                     type="text"
                     value={brand}
                     onChange={(e) => setBrand(e.target.value)}
-                    placeholder="e.g. Mahindra"
+                    placeholder={t('egMahindra') || "e.g. Mahindra"}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 placeholder-gray-300 focus:outline-none focus:border-green-500 bg-white"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">Model / Year</label>
+                  <label className="text-xs text-gray-500 mb-1 block">{t('modelYear') || "Model / Year"}</label>
                   <input
                     type="text"
                     value={modelYear}
                     onChange={(e) => setModelYear(e.target.value)}
-                    placeholder="e.g. 2023 Edition"
+                    placeholder={t('egEdition') || "e.g. 2023 Edition"}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 placeholder-gray-300 focus:outline-none focus:border-green-500 bg-white"
                   />
                 </div>
               </div>
 
               <div className="mb-3">
-                <label className="text-xs text-gray-500 mb-1 block">Full Description</label>
+                <label className="text-xs text-gray-500 mb-1 block">{t('fullDescription') || "Full Description"}</label>
                 <textarea
                   rows={3}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Tell potential buyers/renters about the history and maintenance of your equipment..."
+                  placeholder={t('descriptionPlaceholder') || "Tell potential buyers/renters about the history and maintenance of your equipment..."}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 placeholder-gray-300 focus:outline-none focus:border-green-500 resize-none bg-white"
                 />
               </div>
@@ -430,7 +435,7 @@ const EquipmentPostingPage = () => {
             {/* Equipment Condition */}
             <div className="mb-5">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                Equipment Condition
+                {t('equipmentCondition') || "Equipment Condition"}
               </h2>
               <div className="grid grid-cols-2 gap-2">
                 {["Brand New", "New", "Good", "Used"].map((c) => (
@@ -451,7 +456,7 @@ const EquipmentPostingPage = () => {
             {/* Listing Intent */}
             <div className="mb-5">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                Listing Intent
+                {t('listingIntent') || "Listing Intent"}
               </h2>
               <div className="flex rounded-lg overflow-hidden border border-gray-200">
                 {["Rent", "Sell"].map((intent) => (
@@ -464,7 +469,7 @@ const EquipmentPostingPage = () => {
                         : "bg-white text-gray-600 hover:bg-gray-50"
                     }`}
                   >
-                    {intent}
+                    {t(intent.toLowerCase()) || intent}
                   </button>
                 ))}
               </div>
@@ -473,11 +478,11 @@ const EquipmentPostingPage = () => {
             {/* Price / Day */}
             <div className="mb-5">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                Price/Day (₹)
+                {t('pricePerDay') || "Price/Day (₹)"}
               </h2>
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <label className="text-xs text-gray-400 mb-1 block">Per Min</label>
+                  <label className="text-xs text-gray-400 mb-1 block">{t('perMin') || "Per Min"}</label>
                   <div className="flex items-center border border-gray-200 rounded-lg bg-white focus-within:border-green-500">
                     <span className="pl-2 text-sm text-gray-400">₹</span>
                     <input
@@ -492,7 +497,7 @@ const EquipmentPostingPage = () => {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <label className="text-xs text-gray-400 mb-1 block">Per Max</label>
+                  <label className="text-xs text-gray-400 mb-1 block">{t('perMax') || "Per Max"}</label>
                   <div className="flex items-center border border-gray-200 rounded-lg bg-white focus-within:border-green-500">
                     <span className="pl-2 text-sm text-gray-400">₹</span>
                     <input
@@ -513,7 +518,7 @@ const EquipmentPostingPage = () => {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                  Storage Location
+                  {t('storageLocation') || "Storage Location"}
                 </h2>
                 <button
                     type="button"
@@ -541,12 +546,12 @@ const EquipmentPostingPage = () => {
                   onChange={(e) => { setState(e.target.value); setDistrict(""); setCustomState(""); setCustomDistrict(""); }}
                   className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs text-gray-600 focus:outline-none bg-white"
                 >
-                  <option value="">Select State</option>
+                  <option value="">{t('selectState') || "Select State"}</option>
                   {/* 🚨 USING INDIAN_STATES JSON DATA HERE */}
                   {STATE_NAMES.map((val) => (
                     <option key={val} value={val}>{val}</option>
                   ))}
-                  <option value="other">Other (type below)</option>
+                  <option value="other">{t('otherTypeBelow') || "Other (type below)"}</option>
                 </select>
 
                 {!isOtherState && districts.length > 0 ? (
@@ -555,14 +560,14 @@ const EquipmentPostingPage = () => {
                     onChange={(e) => setDistrict(e.target.value)}
                     className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs text-gray-600 focus:outline-none bg-white"
                   >
-                    <option value="">Select District</option>
+                    <option value="">{t('selectDistrict') || "Select District"}</option>
                     {/* 🚨 USING INDIAN_STATES JSON DATA HERE */}
                     {districts.map((d) => <option key={d} value={d}>{d}</option>)}
                   </select>
                 ) : (
                   <input
                     type="text"
-                    placeholder={isOtherState ? "Type district..." : "Select District"}
+                    placeholder={isOtherState ? (t('typeDistrict') || "Type district...") : (t('selectDistrict') || "Select District")}
                     disabled={!isOtherState && !state}
                     value={isOtherState ? customDistrict : district}
                     onChange={(e) => isOtherState ? setCustomDistrict(e.target.value) : setDistrict(e.target.value)}
@@ -574,7 +579,7 @@ const EquipmentPostingPage = () => {
               {isOtherState && (
                 <input
                   type="text"
-                  placeholder="Type your state..."
+                  placeholder={t('typeState') || "Type your state..."}
                   value={customState}
                   onChange={(e) => setCustomState(e.target.value)}
                   className="w-full mb-2 border border-green-300 rounded-lg px-2 py-2 text-xs text-gray-700 placeholder-gray-300 focus:outline-none focus:border-green-500"
@@ -587,14 +592,14 @@ const EquipmentPostingPage = () => {
                   type="text"
                   value={village}
                   onChange={(e) => setVillage(e.target.value)}
-                  placeholder="Village Name"
+                  placeholder={t('villageName') || "Village Name"}
                   className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs text-gray-600 placeholder-gray-300 focus:outline-none focus:border-green-500"
                 />
                 <input
                   type="text"
                   value={pincode}
                   onChange={(e) => setPincode(e.target.value)}
-                  placeholder="Pincode"
+                  placeholder={t('pincode') || "Pincode"}
                   className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs text-gray-600 placeholder-gray-300 focus:outline-none focus:border-green-500"
                 />
               </div>
@@ -626,8 +631,8 @@ const EquipmentPostingPage = () => {
         {/* Available Now toggle */}
         <div className="bg-white border border-gray-100 rounded-xl px-4 py-3 flex items-center justify-between mb-3 mt-4">
           <div>
-            <p className="text-sm font-medium text-gray-700">Available Now</p>
-            <p className="text-xs text-gray-400">Turn off to set future date</p>
+            <p className="text-sm font-medium text-gray-700">{t('availableNow') || "Available Now"}</p>
+            <p className="text-xs text-gray-400">{t('turnOffFutureDate') || "Turn off to set future date"}</p>
           </div>
           <button
             onClick={() => setAvailableNow(!availableNow)}
@@ -732,15 +737,15 @@ const EquipmentPostingPage = () => {
           disabled={isSubmitting}
           className={`w-full ${isSubmitting ? 'bg-green-400' : 'bg-green-700 hover:bg-green-800'} text-white font-semibold rounded-xl py-3.5 flex items-center justify-center gap-2 transition-colors shadow-sm`}
         >
-          {isSubmitting ? "Processing..." : (recordId ? "Update Equipment" : "Post Equipment")}
+          {isSubmitting ? (t('processing') || "Processing...") : (recordId ? (t('updateEquipment') || "Update Equipment") : (t('postEquipment') || "Post Equipment"))}
           <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
             <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
           </svg>
         </button>
         <p className="text-center text-xs text-gray-400 mt-2 mb-4">
-          By posting, you agree to Farmease's{" "}
-          <span className="underline cursor-pointer">Terms of Service</span> and{" "}
-          <span className="underline cursor-pointer">Community Guidelines</span>
+          {t('termsAgreementPrefix') || "By posting, you agree to Farmease's"}{" "}
+          <span className="underline cursor-pointer">{t('termsOfService') || "Terms of Service"}</span> {t('and') || "and"}{" "}
+          <span className="underline cursor-pointer">{t('communityGuidelines') || "Community Guidelines"}</span>
         </p>
 
       </div>

@@ -11,14 +11,14 @@ const Home = () => {
 
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  // FIXED: Added 'language' and 'changeLanguage' here
+  const { t, language, changeLanguage } = useLanguage();
 
   const handleSearch = (e) => {
     if (e.key === 'Enter' && searchQuery.trim() !== "") {
-      navigate(`/search?query=${encodeURIComponent(searchQuery)}`); // 🚨 Changed to /search?query=
+      navigate(`/marketplace?search=${encodeURIComponent(searchQuery)}`);
     }
   };
-  
 
   const handleLocationClick = () => {
     if ("geolocation" in navigator) {
@@ -61,13 +61,22 @@ const Home = () => {
           </div>
 
           <div className="flex items-center gap-4">
+
+            {/* 🌐 THE LANGUAGE DROPDOWN ADDED HERE */}
+            <select
+              value={language}
+              onChange={(e) => changeLanguage(e.target.value)}
+              className="bg-white text-[#1A4D2E] font-bold py-4 px-4 rounded-2xl border border-gray-200 shadow-sm outline-none cursor-pointer focus:ring-2 focus:ring-[#006F1D] transition-all hidden md:block"
+            >
+              <option value="en">English 🌐</option>
+              <option value="hi">हिन्दी (Hindi) 🇮🇳</option>
+              <option value="kn">ಕನ್ನಡ (Kannada) 🇮🇳</option>
+              <option value="te">తెలుగు (Telugu) 🇮🇳</option>
+              <option value="ta">தமிழ் (Tamil) 🇮🇳</option>
+            </select>
+
             <div className="relative group">
-              {/* 🚨 Added cursor-pointer and onClick so clicking the icon works! */}
-              <Search 
-                  onClick={() => searchQuery.trim() !== "" && navigate(`/search?query=${encodeURIComponent(searchQuery)}`)} // 🚨 Changed here too
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#006F1D] transition-colors cursor-pointer hover:scale-110" 
-                  size={20} 
-                />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#006F1D] transition-colors" size={20} />
               <input
                 type="text"
                 placeholder={t("searchEquipment")}

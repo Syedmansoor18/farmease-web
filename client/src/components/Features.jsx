@@ -1,37 +1,41 @@
-const featuresData = [
-  {
-    title: "Inclusive",
-    description: "Breaking barriers for farmers of all scales, ensuring everyone has the digital tools to succeed.",
-    icon: "👥",
-  },
-  {
-    title: "Smart Profiling",
-    description: "Advanced data modeling to create a comprehensive digital twin of your farm's unique ecosystem.",
-    icon: "🎯",
-  },
-  {
-    title: "Equipment Hub",
-    description: "Rent, lease, or purchase precision machinery directly from trusted local and regional partners.",
-    icon: "🚜",
-  },
-  {
-    title: "Recommendations",
-    description: "Context-aware advice on irrigation, fertilizing, and harvesting based on real-time climate data.",
-    icon: "📈",
-  },
-  {
-    title: "Multilingual",
-    description: "Native support for over 15 regional languages to ensure clarity and ease of use for everyone.",
-    icon: "🗣️",
-  },
-  {
-    title: "Delivery",
-    description: "Integrated logistics network to bring produce to market faster and fresher than ever before.",
-    icon: "🚚",
-  }
-];
+import { useLanguage } from '../context/LanguageContext';
 
 const Features = () => {
+  const { t } = useLanguage();
+
+  const featuresData = [
+    {
+      title: t('feat1Title'),
+      description: t('feat1Desc'),
+      icon: "👥",
+    },
+    {
+      title: t('feat2Title'),
+      description: t('feat2Desc'),
+      icon: "🎯",
+    },
+    {
+      title: t('feat3Title'),
+      description: t('feat3Desc'),
+      icon: "🚜",
+    },
+    {
+      title: t('feat4Title'),
+      description: t('feat4Desc'),
+      icon: "📈",
+    },
+    {
+      title: t('feat5Title'),
+      description: t('feat5Desc'),
+      icon: "🗣️",
+    },
+    {
+      title: t('feat6Title'),
+      description: t('feat6Desc'),
+      icon: "🚚",
+    }
+  ];
+
   return (
     <section className="py-24 px-8 md:px-16 lg:px-24 bg-[#FAFAFA] w-full">
       <div className="max-w-7xl mx-auto">
@@ -40,15 +44,15 @@ const Features = () => {
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
           <div className="max-w-2xl">
             <h2 className="text-4xl md:text-5xl font-extrabold text-[#2D3432] mb-4 tracking-tight">
-              Features that Empower Farmers
+              {t('featuresTitle')}
             </h2>
             <p className="text-[#59615F] text-lg font-medium leading-relaxed">
-              Designed with precision, built for growth. Every tool is crafted to remove friction from your daily workflow.
+              {t('featuresDesc')}
             </p>
           </div>
 
           <button className="text-[#006F1D] font-bold flex items-center hover:text-green-800 transition-colors self-start md:self-end group">
-            View All Features
+            {t('viewAllFeatures')}
             <span className="ml-2 transform group-hover:translate-x-1 transition-transform">→</span>
           </button>
         </div>
