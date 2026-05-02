@@ -98,7 +98,7 @@ function App() {
 export default App;*/
 
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { LanguageProvider } from "./context/LanguageContext"; // <-- ADDED THIS IMPORT
+import { LanguageProvider } from "./Context/LanguageContext"; // <-- ADDED THIS IMPORT
 
 // ─── Landing Page Components ──────────────────────────────────────────────────
 import Hero from "./components/Hero";

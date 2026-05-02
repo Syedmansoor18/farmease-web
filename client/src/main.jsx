@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { LanguageProvider } from "./context/LanguageContext";
+import { LanguageProvider } from "./Context/LanguageContext";
 import "./index.css";
 import App from "./App.jsx";
 

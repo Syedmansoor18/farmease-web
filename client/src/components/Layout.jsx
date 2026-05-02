@@ -2,11 +2,11 @@ import Sidebar from "./Sidebar";
 
 const Layout = ({ children }) => {
   return (
-    <div className="flex">
+    <div className="flex flex-col md:flex-row min-h-screen">
       <Sidebar />
 
       {/* Main Content */}
-      <div className="ml-20 w-full">
+      <div className="w-full md:ml-20 pb-16 md:pb-0">
         {children}
       </div>
     </div>

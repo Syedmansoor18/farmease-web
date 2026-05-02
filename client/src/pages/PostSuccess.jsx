@@ -1,7 +1,7 @@
 import T1 from "/T1.jpeg";
 import Sidebar from "../components/Sidebar";
 import { useNavigate } from "react-router-dom";
-import { useLanguage } from "../context/LanguageContext"; // adjust path as needed
+import { useLanguage } from "../Context/LanguageContext"; // adjust path as needed
 
 const Postingsuccessfulpage = ({ onEditListing }) => {
   const navigate = useNavigate();

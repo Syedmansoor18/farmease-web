@@ -5,7 +5,7 @@ import { supabase } from "../supabaseClient"; // Adjust path if needed
 // 🚨 IMPORTING OUR NEW DATA STORE:
 import { INDIA_DATA, STATE_NAMES } from "../data/indianStates";
 // 🌐 IMPORTING LANGUAGE CONTEXT
-import { useLanguage } from "../context/LanguageContext";
+import { useLanguage } from "../Context/LanguageContext";
 
 const ALL_CATEGORIES = [
   "Tractor","Harvester","Combine Harvester","Rotavator","Cultivator",

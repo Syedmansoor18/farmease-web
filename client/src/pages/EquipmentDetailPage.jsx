@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { useLanguage } from "../context/LanguageContext";
+import { useLanguage } from "../Context/LanguageContext";
 
 const IMAGES = [
   "/T1.jpeg",

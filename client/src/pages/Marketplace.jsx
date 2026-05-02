@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { useLanguage } from "../context/LanguageContext";
+import { useLanguage } from "../Context/LanguageContext";
 
 const tractors = [
   { name: "Swaraj 855 FE", price: "₹600/day", location: "Odisha", image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80" },

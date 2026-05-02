@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom"; // 🚨 Added useSearchParams
 import Sidebar from "../components/Sidebar";
-import { useLanguage } from "../context/LanguageContext";
+import { useLanguage } from "../Context/LanguageContext";
 import { supabase } from "../supabaseClient"; // 🚨 Added Supabase
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
