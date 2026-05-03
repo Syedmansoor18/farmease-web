@@ -79,7 +79,7 @@ const Marketplace = () => {
   }, []);
 
   const handleCardClick = (item) => {
-    navigate("/equipment-detail", { state: { equipment: item } });
+    navigate("/equipment-detail", { state: { equipment: item, from: "marketplace" } });
   };
 
   return (
