@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { LanguageProvider } from "./Context/LanguageContext"; // 🚨 Fixed capital 'C'
+import { LanguageProvider } from "./context/LanguageContext";
 
 // ─── Landing Page Components ──────────────────────────────────────────────────
 import Hero from "./components/Hero";
@@ -13,7 +13,6 @@ import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 
 // ─── Main App Pages ───────────────────────────────────────────────────────────
-// 🚨 Fixed all capital 'P's to lowercase 'p's for the pages folder
 import Home from "./pages/Home";
 import SearchScreen from "./pages/SearchScreen";
 import Marketplace from "./pages/Marketplace";
@@ -22,7 +21,7 @@ import PaymentPage from "./pages/PaymentPage";
 import ListEquipment from "./pages/ListEquipment";
 import PostSuccess from "./pages/PostSuccess";
 import Profile from "./pages/Profile";
-import Notifications from "./pages/Notificatins"; // (Note: typo in your file name 'Notificatins', left as is to not break it!)
+import Notifications from "./pages/Notifications"; // 🚨 FIXED TYPO HERE
 import BookingSuccess from "./pages/BookingSuccess";
 import LanguagePage from "./pages/LanguagePage";
 import SavedEquipment from "./pages/SavedEquipment";
@@ -43,7 +42,6 @@ const LandingPage = () => (
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
   return (
-    // ✅ PERFECTLY WRAPPED! This fixes the SearchScreen crash.
     <LanguageProvider>
       <BrowserRouter>
         <Routes>
@@ -68,7 +66,6 @@ export default function App() {
           <Route path="/saved-equipment" element={<SavedEquipment />} />
           <Route path="/my-bookings" element={<MyBookings />} />
           <Route path="/my-postings" element={<MyPostings />} />
-          <Route path="/hero" element={<Hero />} />
 
         </Routes>
       </BrowserRouter>

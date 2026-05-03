@@ -26,8 +26,8 @@ export default function PaymentPage() {
 
   // 2. DYNAMIC MATH LOGIC
   const basePrice = equipment.price_per_day || 0; // If selling, this field acts as the total price
-  const rentalDays = 5;
-
+  const rentalDays = 5; 
+  
   let rentalCost = 0;
   let securityDeposit = 0;
   let totalAmount = 0;
@@ -73,10 +73,10 @@ export default function PaymentPage() {
       handler: function (response) {
         // This runs if the payment is SUCCESSFUL
         console.log("Payment ID:", response.razorpay_payment_id);
-
+        
         setShowPopup(true);
         setIsSuccess(true);
-
+        
         // Wait 2 seconds to show our success checkmark, then redirect
         setTimeout(() => {
           navigate("/booking-success");
@@ -93,7 +93,7 @@ export default function PaymentPage() {
     };
 
     const paymentObject = new window.Razorpay(options);
-
+    
     // Fallback if the user closes the window without paying
     paymentObject.on('payment.failed', function (response){
       alert(`Payment Failed! Reason: ${response.error.description}`);
@@ -263,7 +263,7 @@ export default function PaymentPage() {
                 <input type="radio" name="payment" value="netbanking" checked={paymentMethod === "netbanking"} onChange={() => setPaymentMethod("netbanking")} className="accent-green-600 w-4 h-4" />
               </label>
             </div>
-
+            
 
             <button
               onClick={handlePayment}

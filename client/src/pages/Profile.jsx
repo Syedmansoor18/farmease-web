@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { useLanguage } from "../Context/LanguageContext";
+import { useLanguage } from "../context/LanguageContext";
 
 import Tr1 from "/Tr1.jpg";
 import PTriller from "/PTriller.jpg";
@@ -26,14 +26,6 @@ const myBookings = [
   { id: 5, label: "ACTIVE", labelColor: "bg-green-500", name: "Rotavator", price: "₹300", img: Tr4 },
 ];
 
-const initialSavedEquipment = [
-  { id: 1, name: "Combine Harvester", sub: "2 reviews", img: T1 },
-  { id: 2, name: "Seed Drill", sub: "3 reviews", img: Sdrill },
-  { id: 3, name: "Seed Drill", sub: "1 review", img: Sdrill2 },
-  { id: 4, name: "Seed Drill", sub: "4 reviews", img: Sdrill3 },
-  { id: 5, name: "Seed Drill", sub: "2 reviews", img: Sdrill4 },
-];
-
 const myPostings = [
   { id: 1, name: "Seed Drill", sub: "4 reviews", img: Sdrill5 },
   { id: 2, name: "Combine Harvester", sub: "2 reviews", img: T1 },
@@ -44,7 +36,7 @@ const myPostings = [
 
 // ─── STATS BAR ───────────────────────────────────────────────────────────────
 
-const StatsBar = ({ t }) => (
+const StatsBar = ({ t, savedCount }) => (
   <div className="flex items-center justify-around border-b border-gray-100 py-4 bg-white">
     <div className="flex flex-col items-center gap-0.5">
       <svg viewBox="0 0 24 24" className="w-6 h-6 fill-green-600">
@@ -73,14 +65,14 @@ const StatsBar = ({ t }) => (
     </div>
 
     <div className="flex flex-col items-center gap-0.5">
-      <span className="text-xl font-bold text-gray-800">8</span>
+      <span className="text-xl font-bold text-gray-800">{savedCount}</span>
       <span className="text-sm text-gray-500">{t("saved")}</span>
     </div>
   </div>
 );
 
 // ─── HORIZONTAL SCROLL SECTION ───────────────────────────────────────────────
-
+// 🚨 Reverted back to your original flex row! No more squished scroll bars.
 const ScrollSection = ({ title, children, onClick }) => (
   <div>
     <div className="flex justify-between items-center mb-2">
@@ -118,25 +110,32 @@ const BookingCard = ({ item }) => (
   </div>
 );
 
-const SavedCard = ({ item, onRemove }) => (
-  <div className="flex-1 min-w-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
-    <div className="w-full aspect-video relative">
-      <img src={item.img} alt={item.name} className="w-full h-full object-cover"/>
-      <button
-        onClick={e => { e.stopPropagation(); onRemove(item.id); }}
-        className="absolute top-1 right-1 bg-white rounded-full p-0.5 shadow cursor-pointer border-none"
-      >
-        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-red-400">
-          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-        </svg>
-      </button>
+// 🚨 Restored flex-1 and aspect-video so it matches the beautiful size of the others
+const SavedCard = ({ item, onRemove }) => {
+  const isSelling = item.description?.toLowerCase().includes("listing intent: sell");
+  const priceText = isSelling ? `₹${item.price || item.price_per_day}` : `₹${item.price_per_day || item.price} / day`;
+  const image = item.image_url || item.image || "https://images.unsplash.com/photo-1592982537447-6f23b361bbcc?w=400&q=80";
+
+  return (
+    <div className="flex-1 min-w-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm relative">
+      <div className="w-full aspect-video relative">
+        <img src={image} alt={item.name} className="w-full h-full object-cover"/>
+        <button
+          onClick={e => { e.stopPropagation(); onRemove(item); }}
+          className="absolute top-1 right-1 bg-white rounded-full p-1 shadow cursor-pointer border-none z-10 hover:bg-red-50"
+        >
+          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-red-400">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+        </button>
+      </div>
+      <div className="p-2">
+        <p className="text-sm font-semibold text-gray-800 truncate capitalize">{item.name}</p>
+        <p className="text-xs text-green-700 font-bold mt-1">{priceText}</p>
+      </div>
     </div>
-    <div className="p-2">
-      <p className="text-sm font-semibold text-gray-800">{item.name}</p>
-      <p className="text-sm text-gray-400">{item.sub}</p>
-    </div>
-  </div>
-);
+  );
+};
 
 const PostingCard = ({ item }) => (
   <div className="flex-1 min-w-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
@@ -144,7 +143,7 @@ const PostingCard = ({ item }) => (
       <img src={item.img} alt={item.name} className="w-full h-full object-cover"/>
     </div>
     <div className="p-2">
-      <p className="text-sm font-semibold text-gray-800">{item.name}</p>
+      <p className="text-sm font-semibold text-gray-800 truncate">{item.name}</p>
       <p className="text-sm text-gray-400">{item.sub}</p>
     </div>
   </div>
@@ -161,7 +160,7 @@ const SettingsGroup = ({ title, items }) => (
       <button
         key={item.id}
         onClick={item.onClick}
-        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
+        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors cursor-pointer ${
           idx < items.length - 1 ? "border-b border-gray-50" : ""
         }`}
       >
@@ -180,10 +179,20 @@ const SettingsGroup = ({ title, items }) => (
 export default function Profile() {
   const navigate = useNavigate();
   const { t } = useLanguage();
-  const [savedEquipment, setSavedEquipment] = useState(initialSavedEquipment);
 
-  const handleRemoveSaved = (id) => {
-    setSavedEquipment(prev => prev.filter(item => item.id !== id));
+  const [savedEquipment, setSavedEquipment] = useState([]);
+
+  useEffect(() => {
+    const items = JSON.parse(localStorage.getItem("savedEquipment") || "[]");
+    setSavedEquipment(items);
+  }, []);
+
+  const handleRemoveSaved = (itemToRemove) => {
+    const updatedItems = savedEquipment.filter(item =>
+      item.id ? item.id !== itemToRemove.id : item.name !== itemToRemove.name
+    );
+    setSavedEquipment(updatedItems);
+    localStorage.setItem("savedEquipment", JSON.stringify(updatedItems));
   };
 
   const accountSettings = [
@@ -210,7 +219,7 @@ export default function Profile() {
     {
       id: 3,
       label: t("notifications"),
-      onClick: () => {},
+      onClick: () => navigate("/notifications"),
       icon: (
         <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current text-gray-500">
           <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
@@ -259,11 +268,11 @@ export default function Profile() {
             </div>
             <h2 className="text-sm font-bold text-gray-900">Ramesh</h2>
             <p className="text-[11px] text-gray-400 mb-2">ID: 001-UXXXXX</p>
-            <button className="border border-green-600 text-green-700 text-xs px-6 py-1 rounded-full hover:bg-green-50 transition-colors">
+            <button className="border border-green-600 text-green-700 text-xs px-6 py-1 rounded-full hover:bg-green-50 transition-colors cursor-pointer">
               {t("editProfile")}
             </button>
           </div>
-          <StatsBar t={t} />
+          <StatsBar t={t} savedCount={savedEquipment.length} />
         </div>
 
         {/* CONTENT */}
@@ -274,9 +283,13 @@ export default function Profile() {
           </ScrollSection>
 
           <ScrollSection title={t("savedEquipment")} onClick={() => navigate("/saved-equipment")}>
-            {savedEquipment.map(item => (
-              <SavedCard key={item.id} item={item} onRemove={handleRemoveSaved} />
-            ))}
+            {savedEquipment.length > 0 ? (
+              savedEquipment.map((item, index) => (
+                <SavedCard key={item.id || index} item={item} onRemove={handleRemoveSaved} />
+              ))
+            ) : (
+              <p className="text-sm text-gray-400 italic py-4">No saved equipment yet.</p>
+            )}
           </ScrollSection>
 
           <ScrollSection title={t("myPostings")} onClick={() => navigate("/my-postings")}>
@@ -287,8 +300,8 @@ export default function Profile() {
           <SettingsGroup title={t("helpAndSupport")} items={helpSupport} />
 
           <button
-            onClick={() => navigate("/hero")}
-            className="w-full border border-green-600 text-green-700 font-medium rounded-xl py-3 text-sm hover:bg-green-600 hover:text-white transition-colors duration-200"
+            onClick={() => navigate("/")}
+            className="w-full border border-green-600 text-green-700 font-medium rounded-xl py-3 text-sm hover:bg-green-600 hover:text-white transition-colors duration-200 cursor-pointer"
           >
             {t("logout")}
           </button>

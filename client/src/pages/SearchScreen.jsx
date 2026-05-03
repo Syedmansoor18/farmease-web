@@ -47,16 +47,17 @@ function StatusBadge({ status, t }) {
 function EquipmentCard({ item, t }) {
   const [liked, setLiked] = useState(false);
   const navigate = useNavigate();
-  const isRent = item.type === "rent";
+  // We use our new helper variable
+  const isRent = item.isRent;
 
   return (
     <div
       className="bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-lg transition-shadow duration-200 cursor-pointer flex flex-col"
-      onClick={() => navigate("/equipment-detail", { state: { equipment: item } })}
+      onClick={() => navigate("/equipment-detail", { state: { equipment: item, from: "search" } })}
     >
       <div className="relative">
         <img
-          src={item.img || "https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=400&q=80"}
+          src={item.image_url || item.image || "https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=400&q=80"}
           alt={item.name}
           className="w-full h-40 object-cover"
         />
@@ -67,26 +68,26 @@ function EquipmentCard({ item, t }) {
           <HeartIcon filled={liked} color={liked ? "#e53935" : "#aaa"} />
         </button>
         <div className="absolute top-2 left-2">
-          <StatusBadge status={item.status} t={t} />
+          <StatusBadge status={item.displayStatus} t={t} />
         </div>
       </div>
 
       <div className="p-3 flex flex-col gap-1 flex-1">
-        <p className="font-bold text-sm text-gray-900 leading-tight">{item.name}</p>
-        <div className="flex items-center gap-1 text-xs text-gray-500">
+        <p className="font-bold text-sm text-gray-900 leading-tight capitalize">{item.name}</p>
+        <div className="flex items-center gap-1 text-xs text-gray-500 capitalize">
           <MapPinIcon color="#2e7d32" size={12} />
-          {item.city}, {item.state}
+          {item.location || item.district}, {item.state}
         </div>
         <div className="mt-auto flex justify-between items-center pt-2">
           <div>
-            <span className="font-bold text-sm text-gray-900">₹{item.price.toLocaleString("en-IN")}</span>
+            <span className="font-bold text-sm text-gray-900">₹{item.displayPrice.toLocaleString("en-IN")}</span>
             <span className="text-xs text-gray-400"> {isRent ? "/ day" : ""}</span>
           </div>
           <button
             onClick={e => e.stopPropagation()}
             className={`text-white text-xs font-semibold px-4 py-1.5 rounded-lg border-none cursor-pointer ${isRent ? "bg-green-800" : "bg-blue-800"}`}
           >
-            {isRent ? t("intentRent") : t("buy")}
+            {isRent ? t("intentRent") || "Rent" : t("buy") || "Buy"}
           </button>
         </div>
       </div>
@@ -133,13 +134,15 @@ const fetchEquipment = async () => {
 
       if (!response.ok) throw new Error(data.error || "Failed to fetch");
 
-      // Format the DB data for the UI so the cards look right
+// Format the DB data for the UI so the cards look right
       const formattedData = data.map(eq => {
         // We parse the 'Listing Intent' out of the description we saved earlier
         const descMatch = eq.description?.match(/Listing Intent: (.*)/);
         const intent = descMatch ? descMatch[1].trim() : "Rent";
+        const isRent = intent.toLowerCase() !== 'sell';
 
         return {
+          ...eq,
           id: eq.id,
           name: eq.name,
           category: eq.type,
@@ -149,7 +152,10 @@ const fetchEquipment = async () => {
           price: eq.price_per_day,
           status: eq.is_available ? "available" : "unavailable",
           img: eq.image_url,
-          rawDescription: eq.description
+          rawDescription: eq.description,
+          isRent: isRent,
+          displayStatus: eq.is_available ? "available" : "unavailable",
+          displayPrice: eq.price_per_day || eq.price || 0
         };
       });
 
@@ -162,15 +168,17 @@ const fetchEquipment = async () => {
   };
 
   // Run the fetch when the component loads, or when the user changes a main filter
+  
   useEffect(() => {
     fetchEquipment();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, selectedState, selectedCategory]); // Removed 'search' dependency to prevent fetching on every keystroke
 
-  // 🚨 Local sorting using useMemo (Fast & Free!)
+// 🚨 Local sorting using useMemo (Fast & Free!)
   const sorted = useMemo(() => {
     const arr = [...liveEquipment];
-    if (sortBy === "price_low") arr.sort((a, b) => a.price - b.price);
-    else if (sortBy === "price_high") arr.sort((a, b) => b.price - a.price);
+    if (sortBy === "price_low") arr.sort((a, b) => a.displayPrice - b.displayPrice);
+    else if (sortBy === "price_high") arr.sort((a, b) => b.displayPrice - a.displayPrice);
     return arr;
   }, [liveEquipment, sortBy]);
 
