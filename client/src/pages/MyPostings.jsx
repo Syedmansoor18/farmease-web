@@ -87,6 +87,8 @@ export default function MyPostings() {
   const [postings, setPostings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activePopup, setActivePopup] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [postToDelete, setPostToDelete] = useState(null);
 
   // 🚨 FETCH LIVE DATA ON LOAD
   useEffect(() => {
@@ -115,11 +117,14 @@ export default function MyPostings() {
         const parsedModel = descMatch ? descMatch[2].trim() : "";
         const parsedDesc = descMatch ? descMatch[3].trim() : eq.description;
         const parsedIntent = descMatch ? descMatch[4].trim() : "Rent";
+        const isSelling = parsedIntent.toLowerCase() === "sell";
+        const displayPrice = eq.price_per_day || eq.price || 0;
 
         return {
           id: eq.id,
           nameKey: eq.name, 
-          price: `₹ ${eq.price_per_day} / day`,
+          // 🚨 SMART PRICE TAG
+          price: isSelling ? `₹ ${displayPrice}` : `₹ ${displayPrice} / day`,
           statusKey: eq.is_available ? "statusAvailable" : "statusInactive",
           postedOnKey: new Date(eq.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
           views: Math.floor(Math.random() * 50), 
@@ -157,10 +162,35 @@ export default function MyPostings() {
     }
   };
 
-  // 🚨 LIVE DELETE COMMAND
-  const handleDelete = async (e, id) => {
-    e.stopPropagation();
-    setPostings(prev => prev.filter(p => p.id !== id));
+// Triggered when they click the trash can icon
+  const confirmDelete = (id) => {
+    setPostToDelete(id);
+    setShowDeleteModal(true);
+  };
+
+  // Triggered when they click "Yes, Delete" inside the pop-up
+  const executeDelete = async () => {
+    if (!postToDelete) return;
+    
+    try {
+      // Tell the Node server to delete it from Supabase
+      const response = await fetch(`http://localhost:5000/api/equipment/${postToDelete}`, {
+        method: "DELETE"
+      });
+
+      if (!response.ok) throw new Error("Failed to delete from server");
+
+      // Instantly remove it from the screen without refreshing the page!
+      setPostings(prev => prev.filter(item => item.id !== postToDelete));
+      
+      // Close the modal
+      setShowDeleteModal(false);
+      setPostToDelete(null);
+
+    } catch (error) {
+      console.error("Error deleting equipment:", error);
+      alert("Something went wrong trying to delete this item.");
+    }
   };
 
   const handleViewRequest = (e, posting) => {
@@ -265,7 +295,7 @@ export default function MyPostings() {
                   )}
 
                   <button
-                    onClick={e => handleDelete(e, posting.id)}
+                    onClick={e => confirmDelete(posting.id)}
                     className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 cursor-pointer transition-colors bg-white"
                   >
                     {t("delete")}
@@ -280,6 +310,43 @@ export default function MyPostings() {
                 <p className="text-sm mt-1">You haven't posted any equipment yet.</p>
               </div>
             )}
+          </div>
+
+          
+        )}
+
+        {/* 🚨 THE CUSTOM DELETE CONFIRMATION POP-UP */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 w-[320px] text-center shadow-xl animate-fade-in">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg viewBox="0 0 24 24" className="w-6 h-6 text-red-600 fill-current">
+                  <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-bold text-gray-900 mb-2">Delete Equipment?</h2>
+              <p className="text-sm text-gray-500 mb-6">
+                Are you sure you want to remove this listing? This action cannot be undone.
+              </p>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setPostToDelete(null);
+                  }}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-2.5 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeDelete}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 rounded-xl transition-colors cursor-pointer"
+                >
+                  Yes, Delete
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </main>

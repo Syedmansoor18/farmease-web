@@ -178,3 +178,22 @@ app.post('/api/equipment', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ─── API ROUTE: DELETE EQUIPMENT ───
+app.delete('/api/equipment/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { error } = await supabase
+      .from('equipment_list')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    
+    res.status(200).json({ message: "Equipment deleted successfully" });
+  } catch (err) {
+    console.error("Delete Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});

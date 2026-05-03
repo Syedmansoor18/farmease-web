@@ -1,28 +1,50 @@
-import T1 from "/T1.jpeg";
+import { useNavigate, useLocation, Navigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { useNavigate } from "react-router-dom";
-import { useLanguage } from "../context/LanguageContext"; // adjust path as needed
+import { useLanguage } from "../context/LanguageContext"; 
 
 const Postingsuccessfulpage = ({ onEditListing }) => {
   const navigate = useNavigate();
+  const location = useLocation(); 
   const { t } = useLanguage();
 
+  // 1. Extract the equipment data sent from the ListEquipment page
+  const equipment = location.state?.equipment;
+
+  // 2. Fallback: If someone refreshes or visits directly, send them back to the form
+  if (!equipment) {
+    return <Navigate to="/list-equipment" />;
+  }
+
+  // 3. Unpack dynamic variables safely
+  const name = equipment.name || equipment.equipmentName || "New Equipment";
+  const brand = equipment.brand || "N/A";
+  const modelYear = equipment.modelYear || "N/A";
+  const condition = equipment.condition || "Good";
+  const price = equipment.price_per_day || equipment.priceMin || equipment.price || 0;
+  
+  // Logic for Rent vs Sell
+  const intent = equipment.listingIntent || "Rent";
+  const isSelling = intent.toLowerCase() === "sell";
+  
+  const category = equipment.type || equipment.category || "Equipment";
+  const description = equipment.description || "No description provided.";
+  
+  // Handle image safely
+  const image = equipment.image_url || equipment.image || equipment.mainPhoto?.url || "https://images.unsplash.com/photo-1592982537447-6f23b361bbcc?w=400&q=80";
+  
+  // Format location beautifully
+  const locRaw = [equipment.village, equipment.location, equipment.district].filter(Boolean)[0] || "";
+  const locationText = locRaw ? `${locRaw}, ${equipment.state || ""}` : equipment.state || "Location not specified";
+
   return (
-    <div
-      className="flex bg-gray-50 min-h-screen"
-      style={{ maxWidth: "100vw", overflowX: "hidden" }}
-    >
+    <div className="flex bg-gray-50 min-h-screen" style={{ maxWidth: "100vw", overflowX: "hidden" }}>
       <Sidebar />
 
-      {/* Main Content */}
       <div className="flex-1 py-6 px-4 sm:px-8" style={{ marginLeft: "76px" }}>
 
         {/* Breadcrumb */}
         <div className="mb-4 flex items-center gap-1 text-sm flex-wrap">
-          <span
-            onClick={() => navigate("/list-equipment")}
-            className="text-gray-700 cursor-pointer hover:underline flex items-center gap-1"
-          >
+          <span onClick={() => navigate("/list-equipment")} className="text-gray-700 cursor-pointer hover:underline flex items-center gap-1">
             <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
               <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z" />
             </svg>
@@ -64,68 +86,62 @@ const Postingsuccessfulpage = ({ onEditListing }) => {
 
               {/* Image */}
               <div className="relative w-full sm:w-72 flex-shrink-0 bg-white h-52 sm:h-auto">
-                <img
-                  src={T1}
-                  alt="KS 9300 Combine Harvester"
-                  className="w-full h-full object-cover"
-                />
-                <span className="absolute top-3 left-3 bg-green-700 text-white text-sm font-bold px-3 py-1 rounded">
-                  {t("intentRent").toUpperCase()}
+                <img src={image} alt={name} className="w-full h-full object-cover" />
+                <span className="absolute top-3 left-3 bg-green-700 text-white text-sm font-bold px-3 py-1 rounded uppercase tracking-wider">
+                  {intent}
                 </span>
-                <div className="absolute bottom-3 left-3 bg-white/90 text-gray-700 text-sm px-3 py-1 rounded-full flex items-center gap-1.5">
+                <div className="absolute bottom-3 left-3 bg-white/90 text-gray-700 text-sm px-3 py-1 rounded-full flex items-center gap-1.5 capitalize">
                   <span className="w-2 h-2 bg-green-500 rounded-full inline-block" />
-                  {t("availableNow")}
+                  {t("availableNow") || "Available"}
                 </div>
               </div>
 
               {/* Details */}
               <div className="flex-1 px-4 sm:px-8 py-5 sm:py-6">
-                <h4 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">
-                  KS 9300 Combine Harvester
+                <h4 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2 capitalize">
+                  {name}
                 </h4>
 
-                <p className="text-sm text-gray-500 mb-4 flex items-center gap-1.5">
+                <p className="text-sm text-gray-500 mb-4 flex items-center gap-1.5 capitalize">
                   <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current text-gray-400 flex-shrink-0">
                     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
                   </svg>
-                  Pimpalgaon, Nashik, Maharashtra
+                  {locationText}
                 </p>
 
-                {/* Specs Grid — 2 cols on mobile, 4 on desktop */}
+                {/* Specs Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-5">
                   <div>
-                    <p className="text-xs sm:text-sm text-gray-400 uppercase tracking-wide mb-1">{t("type")}</p>
-                    <p className="text-sm sm:text-base font-semibold text-gray-700">{t("equipCombineHarvester")}</p>
+                    <p className="text-xs sm:text-sm text-gray-400 uppercase tracking-wide mb-1">{t("category") || "Category"}</p>
+                    <p className="text-sm sm:text-base font-semibold text-gray-700 capitalize">{category}</p>
                   </div>
                   <div>
                     <p className="text-xs sm:text-sm text-gray-400 uppercase tracking-wide mb-1">{t("brand")}</p>
-                    <p className="text-sm sm:text-base font-semibold text-gray-700">Kfoo</p>
+                    <p className="text-sm sm:text-base font-semibold text-gray-700 capitalize">{brand}</p>
                   </div>
                   <div>
                     <p className="text-xs sm:text-sm text-gray-400 uppercase tracking-wide mb-1">{t("modelYear")}</p>
-                    <p className="text-sm sm:text-base font-semibold text-gray-700">2022</p>
+                    <p className="text-sm sm:text-base font-semibold text-gray-700">{modelYear}</p>
                   </div>
                   <div>
                     <p className="text-xs sm:text-sm text-gray-400 uppercase tracking-wide mb-1">{t("condition")}</p>
-                    <p className="text-sm sm:text-base font-semibold text-gray-700">{t("conditionGood")}</p>
+                    <p className="text-sm sm:text-base font-semibold text-gray-700 capitalize">{condition}</p>
                   </div>
                 </div>
 
                 {/* Price */}
                 <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between mb-4 gap-2">
                   <div>
-                    <p className="text-sm text-gray-400 mb-1">{t("rentPricePerDay")}</p>
-                    <p className="text-2xl sm:text-3xl font-bold text-gray-800">₹ 8,500</p>
-                  </div>
-                  <div className="text-left sm:text-right text-sm text-gray-400">
-                    <p>{t("pickupFee")}: ₹400</p>
-                    <p>{t("provider")}: ₹0.00</p>
+                    <p className="text-sm text-gray-400 mb-1">{isSelling ? "Selling Price" : t("rentPricePerDay")}</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-gray-800">
+                      ₹{Number(price).toLocaleString()} {isSelling ? "" : `/ ${t("day") || "day"}`}
+                    </p>
                   </div>
                 </div>
 
                 {/* Description */}
-                <p className="text-sm text-gray-400 italic leading-relaxed">
-                  Well-maintained KS 9300 Combine Harvester. High performance and fuel efficient. Suitable for wheat, rice, and grain harvesting.
+                <p className="text-sm text-gray-500 italic leading-relaxed">
+                  {description}
                 </p>
               </div>
             </div>
@@ -139,23 +155,17 @@ const Postingsuccessfulpage = ({ onEditListing }) => {
 
           {/* Buttons */}
           <div className="px-4 sm:px-8 pb-8">
-            <button
-              onClick={() => navigate("/my-postings")}
-              className="w-full bg-green-700 hover:bg-green-800 text-white font-semibold rounded-xl py-4 text-base transition-colors mb-3"
-            >
+            <button onClick={() => navigate("/my-postings")} className="w-full bg-green-700 hover:bg-green-800 text-white font-semibold rounded-xl py-4 text-base transition-colors mb-3">
               {t("viewMyPostings")}
             </button>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              <button
-                onClick={onEditListing}
-                className="flex-1 border border-gray-300 text-gray-700 font-medium rounded-xl py-3.5 text-base hover:bg-gray-50"
-              >
+              
+              {/* 🚨 This is the restored Edit button! */}
+              <button onClick={onEditListing} className="flex-1 border border-gray-300 text-gray-700 font-medium rounded-xl py-3.5 text-base hover:bg-gray-50">
                 {t("editListing")}
               </button>
-              <button
-                onClick={() => navigate("/list-equipment")}
-                className="flex-1 border border-gray-300 text-gray-700 font-medium rounded-xl py-3.5 text-base hover:bg-gray-50"
-              >
+
+              <button onClick={() => navigate("/list-equipment")} className="flex-1 border border-gray-300 text-gray-700 font-medium rounded-xl py-3.5 text-base hover:bg-gray-50">
                 {t("postAnother")}
               </button>
             </div>
