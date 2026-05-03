@@ -46,13 +46,14 @@ const Home = () => {
     <div className="flex bg-[#F4F7F5] min-h-screen w-full font-sans overflow-hidden">
       <Sidebar />
 
+      {/* Main container with bottom padding for mobile nav bar */}
       <main className="flex-1 md:ml-20 h-screen overflow-y-auto p-5 md:p-10 pb-24 md:pb-10 space-y-8 md:space-y-10">
 
-        {/* 🚨 BULLETPROOF HEADER LAYOUT 🚨 */}
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-5 md:gap-6">
+        {/* TOP HEADER */}
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6">
 
-          {/* 1. Greeting */}
-          <div className="text-left mt-2 md:mt-0">
+          {/* Greeting */}
+          <div className="mt-2 md:mt-0">
             <h1 className="text-3xl md:text-4xl font-black text-[#1A4D2E] tracking-tight">
               {t("greeting")}, {userName}! {t("greetingEmoji")}
             </h1>
@@ -61,53 +62,43 @@ const Home = () => {
             </p>
           </div>
 
-          {/* 2. Controls Area: Stacked vertically on mobile, row on desktop */}
-          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 md:gap-4 w-full md:w-auto">
+          {/* Controls: Exactly like before. Language -> Search -> Location */}
+          <div className="flex items-center gap-3 md:gap-4 w-full md:w-auto">
 
-            {/* Row for Dropdown + Location on Mobile */}
-            <div className="flex items-center gap-3 w-full md:w-auto">
+            {/* LANGUAGE DROPDOWN: Hidden on mobile, visible on desktop */}
+            <select
+              value={language}
+              onChange={(e) => changeLanguage(e.target.value)}
+              className="hidden md:block bg-white text-[#1A4D2E] font-bold py-4 px-4 rounded-2xl border border-gray-200 shadow-sm outline-none cursor-pointer focus:ring-2 focus:ring-[#006F1D] transition-all"
+            >
+              <option value="en">English 🌐</option>
+              <option value="hi">हिन्दी (Hindi) 🇮🇳</option>
+              <option value="kn">ಕನ್ನಡ (Kannada) 🇮🇳</option>
+              <option value="te">తెలుగు (Telugu) 🇮🇳</option>
+              <option value="ta">தமிழ் (Tamil) 🇮🇳</option>
+            </select>
 
-              {/* THE LANGUAGE DROPDOWN - Guaranteed visible */}
-              <div className="relative flex-1 md:w-auto min-w-[120px]">
-                <select
-                  value={language}
-                  onChange={(e) => changeLanguage(e.target.value)}
-                  className="appearance-none w-full bg-white text-[#1A4D2E] font-bold py-3 md:py-4 pl-4 pr-10 rounded-xl md:rounded-2xl border border-gray-200 shadow-sm outline-none cursor-pointer focus:ring-2 focus:ring-[#006F1D] transition-all text-sm md:text-base"
-                >
-                  <option value="en">EN 🌐</option>
-                  <option value="hi">हिन्दी 🇮🇳</option>
-                  <option value="kn">ಕನ್ನಡ 🇮🇳</option>
-                  <option value="te">తెలుగు 🇮🇳</option>
-                  <option value="ta">தமிழ் 🇮🇳</option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-[#1A4D2E]">
-                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
-                  </svg>
-                </div>
-              </div>
-
-              {/* LOCATION BUTTON */}
-              <div
-                onClick={handleLocationClick}
-                className="bg-white p-3 md:p-4 rounded-xl md:rounded-2xl border border-gray-200 shadow-sm text-[#006F1D] cursor-pointer hover:bg-green-50 transition-all active:scale-90 flex items-center justify-center shrink-0"
-              >
-                <MapPin className="w-5 h-5 md:w-6 md:h-6" />
-              </div>
-            </div>
-
-            {/* SEARCH BAR - Full width on mobile */}
-            <div className="relative group w-full md:w-80 shrink-0">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#006F1D] transition-colors w-4 h-4 md:w-5 md:h-5" />
+            {/* SEARCH BAR: Flex-1 makes it shrink to fit mobile screens */}
+            <div className="relative group flex-1 md:w-80">
+              <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#006F1D] transition-colors w-4 h-4 md:w-5 md:h-5" />
               <input
                 type="text"
                 placeholder={t("searchEquipment")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={handleSearch}
-                className="w-full bg-white border border-gray-200 rounded-xl md:rounded-2xl py-3 md:py-4 pl-12 pr-4 shadow-sm focus:ring-2 focus:ring-[#006F1D] outline-none transition-all text-sm md:text-base"
+                className="w-full bg-white border border-gray-200 rounded-xl md:rounded-2xl py-3 md:py-4 pl-10 md:pl-12 pr-4 shadow-sm focus:ring-2 focus:ring-[#006F1D] outline-none transition-all text-sm md:text-base"
               />
             </div>
+
+            {/* LOCATION BUTTON: Kept at the absolute end */}
+            <div
+              onClick={handleLocationClick}
+              className="bg-white p-3 md:p-4 rounded-xl md:rounded-2xl border border-gray-200 shadow-sm text-[#006F1D] cursor-pointer hover:bg-green-50 transition-all active:scale-90 shrink-0"
+            >
+              <MapPin className="w-5 h-5 md:w-6 md:h-6" />
+            </div>
+
           </div>
         </header>
 
@@ -131,7 +122,6 @@ const Home = () => {
                 {t("exploreMarketplace")} <ArrowRight size={18} className="md:w-5 md:h-5" />
               </button>
             </div>
-            {/* Tractor wrapped in div for better mobile scaling */}
             <div className="absolute -right-5 -bottom-5 md:-right-10 md:-bottom-10 text-white/5 rotate-12 group-hover:rotate-0 transition-transform duration-700 w-32 h-32 md:w-52 md:h-52">
                 <Tractor className="w-full h-full" />
             </div>
@@ -168,7 +158,7 @@ const Home = () => {
               <p className="text-gray-500 text-sm md:text-base font-medium mt-1 sm:mt-0">{t("farmersChoiceDesc")}</p>
             </div>
           </div>
-          <div className="flex -space-x-3 md:-space-x-4 shrink-0">
+          <div className="flex -space-x-3 md:-space-x-4 shrink-0 justify-center">
             {[1, 2, 3, 4].map(i => (
               <div key={i} className="w-10 h-10 md:w-14 md:h-14 rounded-full border-2 md:border-4 border-white bg-gray-200 overflow-hidden shadow-sm">
                 <img src={`https://i.pravatar.cc/150?u=${i}`} alt="user" className="w-full h-full object-cover" />

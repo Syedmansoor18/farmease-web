@@ -1,32 +1,7 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useLanguage } from "../Context/LanguageContext";
-
-const tractors = [
-  { name: "Swaraj 855 FE", price: "₹600/day", location: "Odisha", image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80" },
-  { name: "Kubota MU4501", price: "₹800/day", location: "Mandya", image: "https://images.unsplash.com/photo-1592982537447-7440770cbfc9?w=400&q=80" },
-  { name: "Eicher 380", price: "₹400/day", location: "Arala", image: "https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=400&q=80" },
-  { name: "John Deere 5050 D", price: "₹700/day", location: "Punjab", image: "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=400&q=80" },
-  { name: "Mahindra 575 DI", price: "₹550/day", location: "Haryana", image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&q=80" },
-  { name: "New Holland 3630", price: "₹650/day", location: "Kumta", image: "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=400&q=80" },
-];
-
-const harvesting = [
-  { name: "Kartar 4000 Combine", price: "₹2500/day", location: "Itarsi, MP", image: "https://images.unsplash.com/photo-1536657464919-892534f60d6e?w=400&q=80", tag: "HIGH_DEMAND" },
-  { name: "Preet 987 Multicrop", price: "₹2200/day", location: "Hoshangabad", image: "https://images.unsplash.com/photo-1560493676-04071c5f467b?w=400&q=80" },
-  { name: "Wheat Combine Harvester", price: "₹2000/day", location: "Rajasthan", image: "https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=400&q=80" },
-  { name: "Rice Harvester HD", price: "₹1800/day", location: "Tamil Nadu", image: "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=400&q=80" },
-  { name: "Sugarcane Harvester", price: "₹2800/day", location: "Maharashtra", image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80", tag: "HIGH_DEMAND" },
-  { name: "Maize Harvester Pro", price: "₹2100/day", location: "Karnataka", image: "https://images.unsplash.com/photo-1592982537447-7440770cbfc9?w=400&q=80" },
-];
-
-const irrigation = [
-  { name: "Diesel Water Pump 5HP", price: "₹200/day", image: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&q=80" },
-  { name: "Sprinkler Set (20 Pipes)", price: "₹350/day", image: "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=400&q=80" },
-  { name: "Drip Irrigation Kit", price: "₹150/day", image: "https://images.unsplash.com/photo-1560493676-04071c5f467b?w=400&q=80" },
-  { name: "Boom Sprayer 500L", price: "₹300/day", image: "https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=400&q=80" },
-];
 
 const Card = ({ item, onClick, highDemandLabel }) => (
   <div
@@ -54,20 +29,54 @@ const Card = ({ item, onClick, highDemandLabel }) => (
   </div>
 );
 
-const Section = ({ title, data, onCardClick, highDemandLabel }) => (
-  <div className="mb-8">
-    <h2 className="text-lg font-semibold mb-3">{title}</h2>
-    <div className="flex overflow-x-auto no-scrollbar pb-2">
-      {data.map((item, i) => (
-        <Card key={i} item={item} onClick={() => onCardClick(item)} highDemandLabel={highDemandLabel} />
-      ))}
+const Section = ({ title, data, onCardClick, highDemandLabel }) => {
+  if (!data || data.length === 0) return null; // Don't render empty sections
+  
+  return (
+    <div className="mb-8">
+      <h2 className="text-lg font-semibold mb-3">{title}</h2>
+      <div className="flex overflow-x-auto no-scrollbar pb-2">
+        {data.map((item, i) => (
+          <Card key={i} item={item} onClick={() => onCardClick(item)} highDemandLabel={highDemandLabel} />
+        ))}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const Marketplace = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
+
+  // State to hold our real-time data
+  const [equipment, setEquipment] = useState({ tractors: [], harvesting: [], irrigation: [] });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch data when component mounts
+  useEffect(() => {
+    const fetchMarketplaceData = async () => {
+      try {
+        // Replace this URL with your actual backend endpoint if needed
+        // e.g., http://localhost:5000/api/marketplace
+        const response = await fetch('http://localhost:5000/api/marketplace'); 
+        
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        
+        const data = await response.json();
+        setEquipment(data);
+      } catch (err) {
+        console.error("Failed to fetch equipment:", err);
+        setError("Could not load marketplace data. Please try again later.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMarketplaceData();
+  }, []);
 
   const handleCardClick = (item) => {
     navigate("/equipment-detail", { state: { equipment: item } });
@@ -78,13 +87,26 @@ const Marketplace = () => {
       <Sidebar />
 
       <main className="flex-1 ml-0 md:ml-20 p-4 md:p-6 overflow-y-auto">
-
-        <Section title={t("tractorsSection")} data={tractors} onCardClick={handleCardClick} highDemandLabel={t("highDemand")} />
-        <Section title={t("harvestingEquipment")} data={harvesting} onCardClick={handleCardClick} highDemandLabel={t("highDemand")} />
-        <Section title={t("irrigationTools")} data={irrigation} onCardClick={handleCardClick} highDemandLabel={t("highDemand")} />
+        
+        {/* Handle Loading & Error States */}
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64 text-green-700 font-semibold">
+            Loading equipment...
+          </div>
+        ) : error ? (
+          <div className="flex items-center justify-center h-64 text-red-500 font-semibold">
+            {error}
+          </div>
+        ) : (
+          <>
+            <Section title={t("tractorsSection")} data={equipment.tractors} onCardClick={handleCardClick} highDemandLabel={t("highDemand")} />
+            <Section title={t("harvestingEquipment")} data={equipment.harvesting} onCardClick={handleCardClick} highDemandLabel={t("highDemand")} />
+            <Section title={t("irrigationTools")} data={equipment.irrigation} onCardClick={handleCardClick} highDemandLabel={t("highDemand")} />
+          </>
+        )}
 
         {/* Popular Section */}
-        <h2 className="text-lg font-semibold mb-3">{t("popularEquipment")}</h2>
+        <h2 className="text-lg font-semibold mb-3 mt-8">{t("popularEquipment")}</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-10">
 
