@@ -1,12 +1,15 @@
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useLanguage } from "../context/LanguageContext";
+import { supabase } from "../supabaseClient"
 
 // ✅ Status Button Component
 function StatusButton({ status, onClick }) {
   const { t } = useLanguage();
 
-  if (status === "view") {
+  // Updated to look for 'active' or 'view'
+  if (status === "view" || status === "active" || !status) {
     return (
       <button
         onClick={onClick}
@@ -40,50 +43,47 @@ function StatusButton({ status, onClick }) {
 export default function MyBookings() {
   const { t } = useLanguage();
   const navigate = useNavigate();
+  
+  // 🚨 NEW: State for real data
+  const [bookings, setBookings] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleNavigate = () => {
-    navigate("/booking-success");
+  // 🚨 NEW: Fetching real data from backend
+  useEffect(() => {
+    const fetchMyBookings = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const response = await fetch(`http://localhost:5000/api/bookings?user_id=${user.id}`);
+        const data = await response.json();
+        setBookings(data);
+      } catch (error) {
+        console.error("Error fetching real bookings:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMyBookings();
+  }, []);
+
+  // 🚨 NEW: Now correctly navigates to the detail page for that specific item
+  const handleNavigate = (booking) => {
+    // Navigates to details, passing the actual database id/equipment object
+    navigate("/equipment-detail", { state: { equipment: booking } });
   };
-
-  const bookings = [
-    {
-      id: 1,
-      name: "John Deere 5075E Tractor",
-      price: "₹ 800 / hour",
-      date: "Booked on 10 May 2024",
-      status: "view",
-      img: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80",
-    },
-    {
-      id: 2,
-      name: "Water Pump 5 HP",
-      price: "₹ 300 / day",
-      date: "Booked on 08 May 2024",
-      status: "view",
-      img: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&q=80",
-    },
-    {
-      id: 3,
-      name: "Combine Harvester",
-      price: "₹ 4,500 / day",
-      date: "Booked on 04 May 2024",
-      status: "rented",
-      img: "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=400&q=80",
-    },
-  ];
 
   return (
     <div className="flex bg-gray-50 min-h-screen">
       <Sidebar />
 
-      <main className="flex-1 ml-20 p-6 overflow-y-auto">
+      <main className="flex-1 ml-0 md:ml-20 p-6 overflow-y-auto">
         {/* Breadcrumb */}
         <nav className="text-xs text-gray-500 mb-4 flex-items center gap-1">
           <span
             className="cursor-pointer hover:text-gray-700 transition-colors"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate("/profile")}
           >
-            &gt; {t("profile")}
+             {t("profile")}
           </span>
           <span className="text-blue-700">&gt; {t("myBookings")}</span>
         </nav>
@@ -98,51 +98,60 @@ export default function MyBookings() {
           </p>
         </div>
 
-        {/* Booking Cards */}
-        <div className="flex flex-col gap-3 w-full">
-          {bookings.map((booking) => (
-            <div
-              key={booking.id}
-              onClick={handleNavigate}
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 p-3 cursor-pointer hover:shadow-md transition-shadow"
-            >
-              {/* Image */}
-              <img
-                src={booking.img}
-                alt={booking.name}
-                className="w-20 h-16 sm:w-24 sm:h-20 rounded-xl object-cover shrink-0"
-                onError={(e) => {
-                  e.target.src =
-                    "https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=400&q=80";
-                }}
-              />
-
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-sm text-gray-900 truncate">
-                  {booking.name}
-                </p>
-                <p className="text-green-700 font-semibold text-sm mt-0.5">
-                  {booking.price}
-                </p>
-                <p className="text-gray-400 text-xs mt-0.5">
-                  {booking.date}
-                </p>
-              </div>
-
-              {/* Action Button */}
+        {/* Booking Cards Loading State */}
+        {isLoading ? (
+            <p className="text-gray-500 text-sm">Loading your bookings...</p>
+        ) : bookings.length === 0 ? (
+            <p className="text-gray-500 text-sm">You haven't made any bookings yet.</p>
+        ) : (
+          <div className="flex flex-col gap-3 w-full">
+            {bookings.map((booking) => (
               <div
-                className="shrink-0"
-                onClick={(e) => e.stopPropagation()}
+                key={booking._id || booking.id}
+                onClick={() => handleNavigate(booking)}
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 p-3 cursor-pointer hover:shadow-md transition-shadow"
               >
-                <StatusButton
-                  status={booking.status}
-                  onClick={handleNavigate}
+                {/* Image */}
+                <img
+                  src={booking.imageUrl || booking.image || booking.img}
+                  alt={booking.equipmentName || booking.name}
+                  className="w-20 h-16 sm:w-24 sm:h-20 rounded-xl object-cover shrink-0"
+                  onError={(e) => {
+                    e.target.src =
+                      "https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=400&q=80";
+                  }}
                 />
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm text-gray-900 truncate capitalize">
+                    {booking.equipmentName || booking.name}
+                  </p>
+                  <p className="text-green-700 font-semibold text-sm mt-0.5">
+                    ₹{booking.totalAmount || booking.price}
+                  </p>
+                  <p className="text-gray-400 text-xs mt-0.5">
+                    {booking.createdAt ? new Date(booking.createdAt).toLocaleDateString() : booking.date}
+                  </p>
+                </div>
+
+                {/* Action Button */}
+                <div
+                  className="shrink-0"
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevents the card onClick from firing twice
+                    handleNavigate(booking);
+                  }}
+                >
+                  <StatusButton
+                    status={booking.status}
+                    onClick={() => handleNavigate(booking)}
+                  />
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );
