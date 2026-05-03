@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useLocation, Navigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useLanguage } from "../context/LanguageContext";
+import { supabase } from "../supabaseClient"
 
 export default function PaymentPage() {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export default function PaymentPage() {
   const isSelling = listingIntent === "sell";
 
   // 2. DYNAMIC MATH LOGIC
-  const basePrice = equipment.price_per_day || 0; // If selling, this field acts as the total price
+  const basePrice = equipment.price_per_day || equipment.price || 0; 
   const rentalDays = 5; 
   
   let rentalCost = 0;
@@ -62,39 +63,69 @@ export default function PaymentPage() {
       return;
     }
 
-    // Razorpay Options Configuration
     const options = {
-      key: import.meta.env.VITE_RAZORPAY_KEY, // 🚨 PASTE YOUR RAZORPAY TEST KEY HERE (e.g., rzp_test_12345abcde)
-      amount: totalAmount * 100, // Razorpay strictly requires the amount in Paise (multiply by 100)
+      key: import.meta.env.VITE_RAZORPAY_KEY, 
+      amount: totalAmount * 100, 
       currency: "INR",
       name: "FarmEase",
       description: isSelling ? `Purchase: ${equipment.name}` : `Rental: ${equipment.name} (${rentalDays} Days)`,
-      image: "https://images.unsplash.com/photo-1592982537447-6f23b361bbcc?w=100&q=80", // Tiny logo for the payment window
-      handler: function (response) {
-        // This runs if the payment is SUCCESSFUL
-        console.log("Payment ID:", response.razorpay_payment_id);
+      image: "https://images.unsplash.com/photo-1592982537447-6f23b361bbcc?w=100&q=80", 
+      handler: async function (response) {
         
         setShowPopup(true);
         setIsSuccess(true);
         
-        // Wait 2 seconds to show our success checkmark, then redirect
+        // 🚨 NEW: API CALL TO SAVE BOOKING TO YOUR SERVER FOLDER
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+
+          await fetch("http://localhost:5000/api/bookings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user?.id,
+              equipmentId: equipment.id || equipment._id,
+              equipmentName: equipment.name,
+              totalAmount: totalAmount,
+              rentalDays: rentalDays,
+              isSelling: isSelling,
+              transactionId: response.razorpay_payment_id,
+              deliveryMode: deliveryMode,
+              imageUrl: equipmentImage,
+              status: isSelling ? "buyout" : "rented"
+            })
+          });
+        } catch (error) {
+          console.error("Failed to save booking to database:", error);
+        }
+
         setTimeout(() => {
-          navigate("/booking-success");
+          navigate("/booking-success", {
+            state: {
+              equipment,
+              totalAmount,
+              rentalCost,
+              securityDeposit,
+              rentalDays,
+              isSelling,
+              deliveryMode,
+              transactionId: response.razorpay_payment_id 
+            }
+          });
         }, 2000);
       },
       prefill: {
         name: "FarmEase User",
         email: "user@farmease.com",
-        contact: "9876543210" // Standard dummy data for the MVP testing
+        contact: "9876543210" 
       },
       theme: {
-        color: "#15803d" // Tailwind green-700 to match our UI branding perfectly
+        color: "#15803d" 
       }
     };
 
     const paymentObject = new window.Razorpay(options);
     
-    // Fallback if the user closes the window without paying
     paymentObject.on('payment.failed', function (response){
       alert(`Payment Failed! Reason: ${response.error.description}`);
     });
@@ -253,7 +284,7 @@ export default function PaymentPage() {
                 <input type="radio" name="payment" value="card" checked={paymentMethod === "card"} onChange={() => setPaymentMethod("card")} className="accent-green-600 w-4 h-4" />
               </label>
 
-              {/* 🚨 THE RESTORED NETBANKING OPTION */}
+              {/* NETBANKING */}
               <label className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === "netbanking" ? "border-green-600 bg-green-50" : "border-gray-200 bg-white"}`}>
                 <div className="w-8 h-8 rounded-lg bg-yellow-100 flex items-center justify-center text-base">🏦</div>
                 <div className="flex-1">
@@ -272,7 +303,7 @@ export default function PaymentPage() {
              Pay Securely — ₹{totalAmount.toLocaleString()}
             </button>
 
-            {/* Success Popup for Razorpay Redirect */}
+            {/* Success Popup */}
             {showPopup && (
               <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
                 <div className="bg-white rounded-2xl p-6 w-[320px] text-center shadow-xl">
