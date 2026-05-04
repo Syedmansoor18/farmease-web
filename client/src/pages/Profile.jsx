@@ -286,8 +286,20 @@ export default function Profile() {
                 <BookingCard 
                   key={item._id || item.id} 
                   item={item} 
-                  // 🚨 NEW: Make profile card clickable to open detail page
-                  onClick={() => navigate("/equipment-detail", { state: { equipment: item } })}
+                  onClick={() => {
+                    // 🚨 1. Find the stapled equipment data
+                    const actualEquipmentData = item.fullEquipment && Object.keys(item.fullEquipment).length > 0 
+                      ? item.fullEquipment 
+                      : item; // Fallback just in case
+
+                    // 🚨 2. Pass it exactly how Marketplace does!
+                    navigate("/equipment-detail", { 
+                      state: { 
+                        equipment: actualEquipmentData, 
+                        from: "profile" 
+                      } 
+                    });
+                  }}
                 />
               ))
             ) : (

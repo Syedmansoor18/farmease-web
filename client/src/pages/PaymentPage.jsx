@@ -9,26 +9,50 @@ export default function PaymentPage() {
   const location = useLocation();
   const { t } = useLanguage();
 
+  // 1. ALL HOOKS MUST GO AT THE VERY TOP (Fixes Error #2)
   const [paymentMethod, setPaymentMethod] = useState("upi");
   const [deliveryMode, setDeliveryMode] = useState("self");
   const [showPopup, setShowPopup] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
+  // ❌ Removed 'isSuccess' entirely (Fixes Error #1)
 
+  // 🚨 Moved the Date Logic above the return statement!
+  const today = new Date().toISOString().split('T')[0];
+  const defaultEnd = new Date();
+  defaultEnd.setDate(defaultEnd.getDate() + 1); 
+  const tomorrowStr = defaultEnd.toISOString().split('T')[0];
+
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(tomorrowStr);
+
+  // 2. NOW WE CAN HAVE OUR EARLY RETURN
   const equipment = location.state?.equipment;
 
   if (!equipment) {
     return <Navigate to="/marketplace" />;
   }
 
-  // 1. DETERMINE INTENT (Rent vs Sell)
+
+// 1. DETERMINE INTENT (Rent vs Sell)
   const descMatch = equipment.description?.match(/Listing Intent: (.*)/);
   const listingIntent = descMatch ? descMatch[1].trim().toLowerCase() : "rent";
   const isSelling = listingIntent === "sell";
 
-  // 2. DYNAMIC MATH LOGIC
-  const basePrice = equipment.price_per_day || equipment.price || 0; 
-  const rentalDays = 5; 
+  // 🚨 NEW: DYNAMIC DATE LOGIC
+  defaultEnd.setDate(defaultEnd.getDate() + 1); // Default to 1 day rental
+
+  // Calculate rental days based on user selection
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const diffTime = end - start;
+  let calculatedDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   
+  // Safety checks: minimum 1 day, and prevent negative days if user messes with input
+  if (calculatedDays <= 0 || isNaN(calculatedDays)) calculatedDays = 1;
+
+  const rentalDays = isSelling ? 0 : calculatedDays;
+  const basePrice = Number(equipment.price_per_day || equipment.price || 0);
+
+  // 2. DYNAMIC MATH LOGIC
   let rentalCost = 0;
   let securityDeposit = 0;
   let totalAmount = 0;
@@ -40,7 +64,7 @@ export default function PaymentPage() {
     securityDeposit = basePrice * 2;
     totalAmount = rentalCost + securityDeposit;
   }
-
+  
   const equipmentImage = equipment.image || equipment.image_url || "https://images.unsplash.com/photo-1592982537447-6f23b361bbcc?w=400&q=80";
 
   // 3. RAZORPAY SCRIPT LOADER
@@ -73,7 +97,6 @@ export default function PaymentPage() {
       handler: async function (response) {
         
         setShowPopup(true);
-        setIsSuccess(true);
         
         // 🚨 NEW: API CALL TO SAVE BOOKING TO YOUR SERVER FOLDER
         try {
@@ -88,6 +111,8 @@ export default function PaymentPage() {
               equipmentName: equipment.name,
               totalAmount: totalAmount,
               rentalDays: rentalDays,
+              startDate: startDate, // 🚨 Added
+              endDate: endDate,     // 🚨 Added
               isSelling: isSelling,
               transactionId: response.razorpay_payment_id,
               deliveryMode: deliveryMode,
@@ -107,6 +132,8 @@ export default function PaymentPage() {
               rentalCost,
               securityDeposit,
               rentalDays,
+              startDate, // 🚨 Added
+              endDate,
               isSelling,
               deliveryMode,
               transactionId: response.razorpay_payment_id 
@@ -185,15 +212,33 @@ export default function PaymentPage() {
               {/* Conditional Dates based on Rent/Sell */}
               <div className="px-4 py-3 flex gap-6 border-b border-gray-200 bg-gray-50">
                 <div>
-                  <p className="text-xs text-gray-400 uppercase font-semibold tracking-wide mb-1">
-                    {isSelling ? "Date" : t("startDate")}
-                  </p>
-                  <p className="text-sm font-semibold">Today</p>
+                  <label className="text-xs text-gray-400 uppercase font-semibold tracking-wide mb-1">
+                    {isSelling ? "Date" : t("startDate")|| "Start Date"}
+                  </label>
+                  {isSelling ? (
+                    <p className="text-sm font-semibold">Today</p>
+                  ) : (
+                    <input 
+                      type="date" 
+                      value={startDate}
+                      min={today}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full text-sm font-semibold bg-transparent border-none p-0 focus:ring-0 cursor-pointer outline-none text-gray-800"
+                    />
+                  )}
                 </div>
                 {!isSelling && (
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase font-semibold tracking-wide mb-1">{t("endDate")}</p>
-                    <p className="text-sm font-semibold">+{rentalDays} Days</p>
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-400 uppercase font-semibold tracking-wide mb-1">
+                      {t("endDate") || "End Date"}
+                    </label>
+                    <input 
+                      type="date" 
+                      value={endDate}
+                      min={startDate} // Prevents selecting an end date before the start date
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full text-sm font-semibold bg-transparent border-none p-0 focus:ring-0 cursor-pointer outline-none text-gray-800"
+                    />
                   </div>
                 )}
               </div>

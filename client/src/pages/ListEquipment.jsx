@@ -202,12 +202,14 @@ const EquipmentPostingPage = () => {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setIsSubmitting(true);
     showToast(recordId ? (t('updatingListing') || "Updating listing...") : (t('preparingListing') || "Preparing listing..."));
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      console.log("✅ 1. Data saved to database!");
       if (!user) throw new Error(t('mustBeLoggedIn') || "You must be logged in to post equipment.");
 
       let dbCondition = 'good';
@@ -269,19 +271,36 @@ const EquipmentPostingPage = () => {
 
       showToast(recordId ? (t('equipmentUpdated') || "Equipment updated successfully!") : (t('equipmentPosted') || "Equipment posted successfully!"));
 
-      navigate("/post-success", { 
+      console.log("✅ 2. About to navigate...");
+        navigate("/post-success", { 
         state: {
-          id: savedRecord.id, 
-          equipmentName, category, brand, modelYear, condition, price, 
-          village, pincode, district, customDistrict, state, customState, description, 
-          listingIntent, availableNow, mainPhoto, extraPhotos,
-          displayState: state === 'other' ? customState : state,
-          displayDistrict: district || customDistrict
+          equipment: {
+            id: savedRecord.id, 
+            equipmentName, 
+            category, 
+            brand, 
+            modelYear, 
+            condition, 
+            price, 
+            village, 
+            pincode, 
+            district, 
+            customDistrict, 
+            state: state === 'other' ? customState : state, 
+            customState, 
+            description, 
+            listingIntent, 
+            availableNow, 
+            imageUrl: finalImageUrl, // Safely passing the cloud URL!
+            displayState: state === 'other' ? customState : state,
+            displayDistrict: district || customDistrict
+          }
         }
       });
 
     } catch (error) {
       console.error("Error posting equipment:", error);
+      console.error("🚨 3. CRASH IN SUBMIT:", error);
       alert(error.message);
     } finally {
       setIsSubmitting(false);
@@ -749,12 +768,12 @@ const EquipmentPostingPage = () => {
         </div>
 
         {/* Post Equipment button */}
-        <button
+        <button type="button"
           onClick={handleSubmit}
           disabled={isSubmitting}
           className={`w-full ${isSubmitting ? 'bg-green-400' : 'bg-green-700 hover:bg-green-800'} text-white font-semibold rounded-xl py-3.5 flex items-center justify-center gap-2 transition-colors shadow-sm`}
         >
-          {isSubmitting ? (t('processing') || "Processing...") : (recordId ? (t('updateEquipment') || "Update Equipment") : (t('postEquipment') || "Post Equipment"))}
+          {isSubmitting ? (t('Processing') || "Processing...") : (recordId ? (t('Update Equipment') || "Update Equipment") : (t('Post Equipment') || "Post Equipment"))}
           <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
             <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
           </svg>

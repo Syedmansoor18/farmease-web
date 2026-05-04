@@ -4,6 +4,7 @@ import Sidebar from "../components/Sidebar";
 import { useLanguage } from "../context/LanguageContext";
 
 export default function EquipmentDetailPage() {
+  
   const [activeImg, setActiveImg] = useState(0);
   const [wishlist, setWishlist] = useState(false);
   
@@ -11,23 +12,46 @@ export default function EquipmentDetailPage() {
   const location = useLocation(); // 🚨 This catches the data from Marketplace!
   const { t } = useLanguage();
 
-  // 1. Extract the equipment object passed from the Marketplace card click
-  const equipment = location.state?.equipment;
-// 🚨 Check where the user came from (Defaults to marketplace just in case)
-  const origin = location.state?.from || "marketplace";
+  // 1. Extract the raw object passed from the previous page
+  const rawEquipment = location.state?.equipment;
 
-  // 2. Fallback: If someone refreshes the page or visits the URL directly, send them back to the marketplace so it doesn't crash.
-  if (!equipment) {
+  // 2. Fallback: If someone refreshes the page directly, send them to marketplace
+  if (!rawEquipment) {
     return <Navigate to="/marketplace" />;
   }
 
-  // 3. Unpack the description data (Using our regex trick!)
+  // 🚨 3. THE UNIVERSAL TRANSLATOR
+  // Automatically fixes missing or mismatched variables depending on where the user came from
+  const equipment = {
+    ...rawEquipment,
+    name: rawEquipment.name || rawEquipment.equipmentName || "Unknown Equipment",
+    price_per_day: rawEquipment.price_per_day || rawEquipment.totalAmount || rawEquipment.price || 0,
+    image_url: rawEquipment.image_url || rawEquipment.imageUrl || rawEquipment.image || null,
+    type: rawEquipment.type || rawEquipment.category || "General",
+    description: rawEquipment.description || "Equipment details from previous booking.",
+  };
+
+  // 🚨 Check where the user came from
+  const origin = location.state?.from || "marketplace";
+
+  // 4. Unpack the description data safely (Using our regex trick!)
   const descMatch = equipment.description?.match(/Brand: (.*?)\| Model: (.*?)\n\n([\s\S]*?)\n\nListing Intent: (.*)/);
-  const brand = descMatch ? descMatch[1].trim() : "Unknown";
-  const modelYear = descMatch ? descMatch[2].trim() : "Unknown";
+  const brand = descMatch ? descMatch[1].trim() : "FarmEase";
+  const modelYear = descMatch ? descMatch[2].trim() : "Standard";
   const rawDesc = descMatch ? descMatch[3].trim() : equipment.description;
   const listingIntent = descMatch ? descMatch[4].trim() : "Rent";
   const isSelling = listingIntent.toLowerCase() === "sell";
+
+  // 🚨 DYNAMIC BREADCRUMB MAP
+  const breadcrumbMap = {
+    "marketplace": { label: t("marketplace") || "Marketplace", path: "/marketplace" },
+    "my-bookings": { label: t("myBookings") || "My Bookings", path: "/my-bookings" },
+    "profile": { label: t("profile") || "Profile", path: "/profile" },
+    "search": { label: t("search") || "Search", path: "/search" }
+  };
+
+  // Grab the correct setup, defaulting to marketplace if something goes wrong
+  const currentBreadcrumb = breadcrumbMap[origin] || breadcrumbMap["marketplace"];
 
   // 4. Handle Images safely
   const images = equipment.image_url || equipment.image 
@@ -52,16 +76,16 @@ export default function EquipmentDetailPage() {
       <main className="flex-1 ml-0 md:ml-20 p-4 md:p-6 overflow-y-auto">
 
         {/* Breadcrumb */}
-        <nav className="text-sm text-gray-500 mb-4 flex items-center gap-1 flex-wrap">
-          <span
-            className="text-gray-700 cursor-pointer hover:underline capitalize"
-            onClick={() => navigate(-1)} 
-          >
-            {origin === "search" ? t("search") || "Search" : t("marketplace")}
-          </span>
-          <span className="text-gray-400">&gt;</span>
-          <span className="text-blue-500 capitalize">{equipment.name}</span>
-        </nav>
+          {/* Dynamic Breadcrumb */}
+                  <nav className="text-xs text-gray-500 mb-4 flex items-center gap-1">
+                    <span
+                      className="cursor-pointer hover:text-gray-700 transition-colors capitalize"
+                      onClick={() => navigate(currentBreadcrumb.path)}
+                    >
+                      {currentBreadcrumb.label}
+                    </span>
+                    <span className="text-blue-700">&gt; {equipment.name}</span>
+                  </nav>
 
         {/* Main Body */}
         <div className="flex flex-col md:flex-row gap-6 md:gap-8">

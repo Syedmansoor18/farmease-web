@@ -66,10 +66,40 @@ export default function MyBookings() {
     fetchMyBookings();
   }, []);
 
-  // 🚨 NEW: Now correctly navigates to the detail page for that specific item
-  const handleNavigate = (booking) => {
-    // Navigates to details, passing the actual database id/equipment object
-    navigate("/equipment-detail", { state: { equipment: booking } });
+// In MyBookings.jsx
+const handleNavigate = (booking) => {
+    // 1. Let's peek inside the box to see what the backend actually sent!
+    console.log("📦 Raw Booking Data:", booking);
+
+    // 2. Try to grab the 'stapled' equipment manual from the backend
+    let dataToPass = booking.fullEquipment;
+
+    // 3. 🚨 THE SAFETY NET 🚨
+    // If the backend didn't attach 'fullEquipment' (or it's empty), we build a 
+    // manual fallback object matching the exact keys the Detail page expects!
+    if (!dataToPass || Object.keys(dataToPass).length === 0) {
+      console.warn("⚠️ 'fullEquipment' is missing! Triggering safety net translation.");
+      
+      dataToPass = {
+        id: booking.equipmentId || booking.id,
+        name: booking.equipmentName || "Unknown Equipment",   // Detail page expects 'name'
+        image_url: booking.imageUrl,                          // Detail page expects 'image_url'
+        price_per_day: booking.totalAmount || booking.price,  // Detail page expects 'price_per_day'
+        description: "Booking Date: " + (booking.createdAt ? new Date(booking.createdAt).toLocaleDateString() : "N/A"),
+        brand: "FarmEase Rental",
+        condition: "good"
+      };
+    }
+
+    console.log("🚀 Sending this to Detail Page:", dataToPass);
+
+    // 4. Send it wrapped perfectly for your friend's Marketplace code
+    navigate("/equipment-detail", { 
+      state: { 
+        equipment: dataToPass, 
+        from: "my-bookings" 
+      } 
+    });
   };
 
   return (

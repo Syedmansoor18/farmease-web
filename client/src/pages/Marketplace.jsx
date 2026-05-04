@@ -3,31 +3,48 @@ import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useLanguage } from "../context/LanguageContext";
 
-const Card = ({ item, onClick, highDemandLabel }) => (
-  <div
-    onClick={onClick}
-    className="min-w-[220px] sm:min-w-[260px] bg-white rounded-2xl shadow-sm overflow-hidden mr-4 cursor-pointer hover:shadow-md transition-shadow flex-shrink-0"
-  >
-    <img
-      src={item.image}
-      alt={item.name}
-      className="h-36 w-full object-cover"
-      onError={e => { e.target.src = "https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=400&q=80"; }}
-    />
-    <div className="p-3">
-      <div className="font-semibold text-sm">{item.name}</div>
-      <div className="text-green-600 font-medium text-sm mt-1">{item.price}</div>
-      {item.location && (
-        <div className="text-gray-400 text-xs mt-1">{item.location}</div>
-      )}
-      {item.tag === "HIGH_DEMAND" && (
-        <span className="text-xs bg-red-100 text-red-500 px-2 py-1 rounded mt-2 inline-block font-bold">
-          {highDemandLabel}
-        </span>
-      )}
+const Card = ({ item, onClick, highDemandLabel }) => {
+  // 🚨 1. Figure out if this is a Sale or a Rental
+  const descMatch = item.description?.match(/Listing Intent: (.*)/);
+  const listingIntent = descMatch ? descMatch[1].trim() : "Rent";
+  const isSelling = listingIntent.toLowerCase() === "sell";
+
+  // 🚨 2. Clean the price string (This forces "/ day" out of the string if the backend baked it in)
+  // We also fallback to item.price_per_day just in case your database uses that instead!
+  let basePrice = item.price || `₹${item.price_per_day || 0}`;
+  basePrice = basePrice.toString().replace(/\/?\s*day/gi, '').trim(); 
+
+  return (
+    <div
+      onClick={onClick}
+      className="min-w-[220px] sm:min-w-[260px] bg-white rounded-2xl shadow-sm overflow-hidden mr-4 cursor-pointer hover:shadow-md transition-shadow flex-shrink-0"
+    >
+      <img
+        src={item.image_url || item.image} // Safely checking both image variables
+        alt={item.name}
+        className="h-36 w-full object-cover"
+        onError={e => { e.target.src = "https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=400&q=80"; }}
+      />
+      <div className="p-3">
+        <div className="font-semibold text-sm">{item.name}</div>
+        
+        {/* 🚨 3. THE DYNAMIC PRICE RENDER 🚨 */}
+        <div className="text-green-600 font-medium text-sm mt-1">
+          {basePrice} {isSelling ? "" : <span className="text-gray-400 text-xs font-normal">/ day</span>}
+        </div>
+
+        {item.location && (
+          <div className="text-gray-400 text-xs mt-1">{item.location}</div>
+        )}
+        {item.tag === "HIGH_DEMAND" && (
+          <span className="text-xs bg-red-100 text-red-500 px-2 py-1 rounded mt-2 inline-block font-bold">
+            {highDemandLabel}
+          </span>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const Section = ({ title, data, onCardClick, highDemandLabel }) => {
   if (!data || data.length === 0) return null; // Don't render empty sections
@@ -49,7 +66,8 @@ const Marketplace = () => {
   const { t } = useLanguage();
 
   // State to hold our real-time data
-  const [equipment, setEquipment] = useState({ tractors: [], harvesting: [], irrigation: [] });
+  // 🚨 ADDED: A bucket for everything else!
+  const [equipment, setEquipment] = useState({ tractors: [], harvesting: [], irrigation: [], others: [] });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -102,7 +120,8 @@ const Marketplace = () => {
             <Section title={t("tractorsSection")} data={equipment.tractors} onCardClick={handleCardClick} highDemandLabel={t("highDemand")} />
             <Section title={t("harvestingEquipment")} data={equipment.harvesting} onCardClick={handleCardClick} highDemandLabel={t("highDemand")} />
             <Section title={t("irrigationTools")} data={equipment.irrigation} onCardClick={handleCardClick} highDemandLabel={t("highDemand")} />
-          </>
+            <Section title={t("Other Equipment") || "Other Farm Tools"} data={equipment.others} onCardClick={handleCardClick} highDemandLabel={t("highDemand")} />
+        </>
         )}
 
         {/* Popular Section */}
