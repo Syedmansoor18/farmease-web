@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { supabase } from "../supabaseClient";
 import { INDIA_DATA, STATE_NAMES } from "../data/indianStates";
-import { useLanguage } from "../context/LanguageContext";
+import { useLanguage } from "../Context/LanguageContext";
 
 // 🚨 LEAFLET MAP IMPORTS
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';

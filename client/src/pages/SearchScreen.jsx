@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom"; // 🚨 Added useSearchParams
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { useLanguage } from "../context/LanguageContext";
+import { useLanguage } from "../Context/LanguageContext";
+import { supabase } from "../supabaseClient";
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 const SearchIcon = () => (
@@ -44,10 +45,9 @@ function StatusBadge({ status, t }) {
 }
 
 // ── Equipment Card ────────────────────────────────────────────────────────────
-function EquipmentCard({ item, t }) {
-  const [liked, setLiked] = useState(false);
+// 🚨 Notice we now pass `liked` and `onToggle` as props from the main component!
+function EquipmentCard({ item, t, liked, onToggle }) {
   const navigate = useNavigate();
-  // We use our new helper variable
   const isRent = item.isRent;
 
   return (
@@ -62,8 +62,8 @@ function EquipmentCard({ item, t }) {
           className="w-full h-40 object-cover"
         />
         <button
-          onClick={e => { e.stopPropagation(); setLiked(l => !l); }}
-          className="absolute top-2 right-2 w-8 h-8 bg-white/90 rounded-full border-none flex items-center justify-center cursor-pointer shadow-sm"
+          onClick={onToggle}
+          className="absolute top-2 right-2 w-8 h-8 bg-white/90 rounded-full border-none flex items-center justify-center cursor-pointer shadow-sm z-10"
         >
           <HeartIcon filled={liked} color={liked ? "#e53935" : "#aaa"} />
         </button>
@@ -100,12 +100,15 @@ export default function SearchScreen() {
   const { t } = useLanguage();
   const [searchParams] = useSearchParams();
 
-  // 🚨 Catch the URL query on load
   const initialQuery = searchParams.get("query") || "";
 
   // 🚨 Live Data States
   const [liveEquipment, setLiveEquipment] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // 🚨 Real Database States for Saved Items
+  const [savedItems, setSavedItems] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
 
   // Filter States
   const [search, setSearch] = useState(initialQuery);
@@ -114,52 +117,72 @@ export default function SearchScreen() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [sortBy, setSortBy] = useState("recommended");
 
-  // 🚨 THE SUPABASE SEARCH ENGINE
-const fetchEquipment = async () => {
+  // Load the current user and their real database saved items
+  useEffect(() => {
+    const loadRealSavedItems = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return; 
+      
+      setCurrentUser(user);
+
+      try {
+        const response = await fetch(`http://localhost:5000/api/saved?user_id=${user.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setSavedItems(data);
+        }
+      } catch (error) {
+        console.error("Failed to load database saved items:", error);
+      }
+    };
+
+    loadRealSavedItems();
+  }, []);
+
+
+// 1. A pure helper function: No state changes, just data fetching!
+  const executeSearch = async (searchTerm, currentMode, currentState, currentCategory) => {
+    const baseUrl = "http://localhost:5000/api/search";
+    const params = new URLSearchParams({
+      query: searchTerm,
+      mode: currentMode,
+      state: currentState,
+      category: currentCategory
+    });
+
+    const response = await fetch(`${baseUrl}?${params}`);
+    const data = await response.json();
+
+    if (!response.ok) throw new Error(data.error || "Failed to fetch");
+
+    return data.map(eq => {
+      const descMatch = eq.description?.match(/Listing Intent: (.*)/);
+      const intent = descMatch ? descMatch[1].trim() : "Rent";
+      return {
+        ...eq,
+        id: eq.id,
+        name: eq.name,
+        category: eq.type,
+        type: intent.toLowerCase() === 'sell' ? 'buy' : 'rent',
+        state: eq.state,
+        city: eq.location || eq.district,
+        price: eq.price_per_day,
+        status: eq.is_available ? "available" : "unavailable",
+        img: eq.image_url,
+        rawDescription: eq.description,
+        isRent: intent.toLowerCase() !== 'sell',
+        displayStatus: eq.is_available ? "available" : "unavailable",
+        displayPrice: eq.price_per_day || eq.price || 0
+      };
+    });
+  };
+
+  // 2. Used when the user presses "Enter" or clicks the Search Button
+  const handleManualSearch = async () => {
     setIsLoading(true);
     try {
-      // 🚨 We now hit our LOCAL server on Port 5000
-      const baseUrl = "http://localhost:5000/api/search";
-      
-      // We turn our state variables into a URL query string
-      const params = new URLSearchParams({
-        query: search,
-        mode: mode,
-        state: selectedState,
-        category: selectedCategory
-      });
-
-      const response = await fetch(`${baseUrl}?${params}`);
-      const data = await response.json();
-
-      if (!response.ok) throw new Error(data.error || "Failed to fetch");
-
-// Format the DB data for the UI so the cards look right
-      const formattedData = data.map(eq => {
-        // We parse the 'Listing Intent' out of the description we saved earlier
-        const descMatch = eq.description?.match(/Listing Intent: (.*)/);
-        const intent = descMatch ? descMatch[1].trim() : "Rent";
-        const isRent = intent.toLowerCase() !== 'sell';
-
-        return {
-          ...eq,
-          id: eq.id,
-          name: eq.name,
-          category: eq.type,
-          type: intent.toLowerCase() === 'sell' ? 'buy' : 'rent',
-          state: eq.state,
-          city: eq.location || eq.district,
-          price: eq.price_per_day,
-          status: eq.is_available ? "available" : "unavailable",
-          img: eq.image_url,
-          rawDescription: eq.description,
-          isRent: isRent,
-          displayStatus: eq.is_available ? "available" : "unavailable",
-          displayPrice: eq.price_per_day || eq.price || 0
-        };
-      });
-
-      setLiveEquipment(formattedData);
+      const results = await executeSearch(search, mode, selectedState, selectedCategory);
+      setLiveEquipment(results);
     } catch (error) {
       console.error("Error fetching search results:", error);
     } finally {
@@ -167,14 +190,28 @@ const fetchEquipment = async () => {
     }
   };
 
-  // Run the fetch when the component loads, or when the user changes a main filter
-  
+  // 3. Used when the user clicks a dropdown (Auto-fetches safely)
   useEffect(() => {
-    fetchEquipment();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, selectedState, selectedCategory]); // Removed 'search' dependency to prevent fetching on every keystroke
+    let isMounted = true; // Safety flag to prevent memory leaks
 
-// 🚨 Local sorting using useMemo (Fast & Free!)
+    const runFilterFetch = async () => {
+      setIsLoading(true);
+      try {
+        const results = await executeSearch(search, mode, selectedState, selectedCategory);
+        // Only update the screen if the user hasn't left the page
+        if (isMounted) setLiveEquipment(results); 
+      } catch (error) {
+        console.error("Error fetching filtered results:", error);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    runFilterFetch();
+
+    return () => { isMounted = false; }; // Cleanup function
+  }, [mode, selectedState, selectedCategory]);
+
   const sorted = useMemo(() => {
     const arr = [...liveEquipment];
     if (sortBy === "price_low") arr.sort((a, b) => a.displayPrice - b.displayPrice);
@@ -182,12 +219,52 @@ const fetchEquipment = async () => {
     return arr;
   }, [liveEquipment, sortBy]);
 
+  // 🚨 The Real Database Toggle Function
+  const handleToggleSave = async (item, e) => {
+    e.stopPropagation();
+
+    if (!currentUser) {
+      alert("You must be logged in to save equipment.");
+      return;
+    }
+
+    const isCurrentlySaved = savedItems.some(saved => saved.id === item.id);
+
+    // Optimistic UI Update
+    if (isCurrentlySaved) {
+      setSavedItems(prev => prev.filter(saved => saved.id !== item.id));
+    } else {
+      setSavedItems(prev => [...prev, item]);
+    }
+
+    // Backend Sync
+    try {
+      const response = await fetch("http://localhost:5000/api/saved/toggle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: currentUser.id,
+          equipment_id: item.id
+        })
+      });
+
+      if (!response.ok) throw new Error("Database rejected the save");
+    } catch (error) {
+      console.error("Database sync failed:", error);
+      // Revert if failed
+      if (isCurrentlySaved) {
+         setSavedItems(prev => [...prev, item]);
+      } else {
+         setSavedItems(prev => prev.filter(saved => saved.id !== item.id));
+      }
+    }
+  };
+
   return (
     <div className="bg-[#f4f6f3] min-h-screen font-sans" style={{ maxWidth: "100vw", overflowX: "hidden" }}>
       <Sidebar />
       <div className="p-6" style={{ marginLeft: "76px" }}>
 
-        {/* Search Bar */}
         <div className="flex gap-2 mb-4">
           <div className="flex-1 relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 flex"><SearchIcon /></span>
@@ -196,20 +273,20 @@ const fetchEquipment = async () => {
               placeholder={t("searchEquipmentPlaceholder")}
               value={search}
               onChange={e => setSearch(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && fetchEquipment()} // Fetch on Enter key
+              onKeyDown={e => e.key === 'Enter' && handleManualSearch()}
               className="w-full py-3 pl-11 pr-4 border-2 border-gray-200 rounded-full text-sm outline-none bg-white focus:border-green-700 transition-colors"
             />
           </div>
           <button
-            onClick={fetchEquipment} // Fetch on button click
+            onClick={handleManualSearch}
             className="bg-green-800 hover:bg-green-900 transition-colors text-white border-none rounded-full px-6 py-3 text-sm font-semibold cursor-pointer flex items-center gap-2"
           >
             <SearchIcon /> {t("search")}
           </button>
         </div>
 
-        {/* Filters Row */}
         <div className="flex gap-2 items-center mb-3 flex-wrap">
+          {/* ... Dropdowns remain exactly the same ... */}
           <div className="relative">
             <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} className="appearance-none py-2 pl-3 pr-8 rounded-lg border-2 border-gray-200 text-sm bg-white cursor-pointer outline-none">
               {CATEGORIES.map(c => <option key={c.key} value={c.key}>{t(c.labelKey)}</option>)}
@@ -250,7 +327,6 @@ const fetchEquipment = async () => {
           </div>
         </div>
 
-        {/* Category Pills + Results Count */}
         <div className="flex items-center gap-2 mb-5 flex-wrap">
           {CATEGORIES.map(cat => (
             <button
@@ -266,7 +342,6 @@ const fetchEquipment = async () => {
           </span>
         </div>
 
-        {/* Cards Grid */}
         {isLoading ? (
           <div className="text-center py-20 text-green-800 font-bold">Loading live inventory...</div>
         ) : sorted.length === 0 ? (
@@ -277,7 +352,16 @@ const fetchEquipment = async () => {
           </div>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(235px,1fr))] gap-4">
-            {sorted.map(item => <EquipmentCard key={item.id} item={item} t={t} />)}
+            {/* 🚨 Passing the saved status and the toggle function down to the card */}
+            {sorted.map(item => (
+              <EquipmentCard 
+                key={item.id} 
+                item={item} 
+                t={t} 
+                liked={savedItems.some(saved => saved.id === item.id)}
+                onToggle={(e) => handleToggleSave(item, e)}
+              />
+            ))}
           </div>
         )}
 

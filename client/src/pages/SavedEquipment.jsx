@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { useLanguage } from "../context/LanguageContext"; // Ensure path is correct
+import { useLanguage } from "../Context/LanguageContext"; // Ensure path is correct
 
 export default function SavedEquipments() {
   const navigate = useNavigate();

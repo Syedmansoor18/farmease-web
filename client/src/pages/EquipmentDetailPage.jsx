@@ -1,68 +1,96 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react"; // 🚨 Added useMemo
 import { useNavigate, useLocation, Navigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { useLanguage } from "../context/LanguageContext";
+import { useLanguage } from "../Context/LanguageContext";
+import { supabase } from "../supabaseClient";
 
 export default function EquipmentDetailPage() {
-  const [activeImg, setActiveImg] = useState(0);
-  const [wishlist, setWishlist] = useState(false);
-
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useLanguage();
 
-  // 1. Extract the raw object passed from the previous page
+  // 1. ALL Hooks go at the absolute top
+  const [activeImg, setActiveImg] = useState(0);
+  const [wishlist, setWishlist] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
   const rawEquipment = location.state?.equipment;
 
-  // 2. Fallback: If someone refreshes the page directly, send them to marketplace
-  if (!rawEquipment) {
+  // 2. Wrap the object builder in useMemo so it doesn't trigger endless re-renders
+  const equipment = useMemo(() => {
+    if (!rawEquipment) return null;
+    return {
+      ...rawEquipment,
+      name: rawEquipment.name || rawEquipment.equipmentName || "Unknown Equipment",
+      price_per_day: rawEquipment.price_per_day || rawEquipment.totalAmount || rawEquipment.price || 0,
+      image_url: rawEquipment.image_url || rawEquipment.imageUrl || rawEquipment.image || null,
+      type: rawEquipment.type || rawEquipment.category || "General",
+      description: rawEquipment.description || "Equipment details from previous booking.",
+    };
+  }, [rawEquipment]);
+
+  const origin = location.state?.from || "marketplace";
+
+  // 🚨 DYNAMIC FIX 1: Ask the database if this item is saved
+  useEffect(() => {
+    const checkDatabaseSavedStatus = async () => {
+      if (!equipment) return;
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      setCurrentUser(user);
+
+      try {
+        const response = await fetch(`http://localhost:5000/api/saved?user_id=${user.id}`);
+        if (response.ok) {
+          const savedData = await response.json();
+          // Check if the current equipment ID exists in the user's database list
+          setWishlist(savedData.some(item => item.id === equipment.id));
+        }
+      } catch (error) {
+        console.error("Failed to load database saved items:", error);
+      }
+    };
+
+    checkDatabaseSavedStatus();
+  }, [equipment]);
+
+  // 🚨 DYNAMIC FIX 2: Toggle Save/Unsave in the Database
+  const toggleSave = async (e) => {
+    if (e) e.stopPropagation();
+
+    if (!currentUser) {
+      alert("You must be logged in to save equipment.");
+      return;
+    }
+
+    const currentlySaved = wishlist;
+    // Optimistic UI Update
+    setWishlist(!currentlySaved);
+
+    try {
+      const response = await fetch("http://localhost:5000/api/saved/toggle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: currentUser.id,
+          equipment_id: equipment.id
+        })
+      });
+
+      if (!response.ok) throw new Error("Database rejected the save");
+    } catch (error) {
+      console.error("Database sync failed:", error);
+      // Revert if it fails
+      setWishlist(currentlySaved);
+    }
+  };
+
+  if (!rawEquipment || !equipment) {
     return <Navigate to="/marketplace" />;
   }
 
-  // 🚨 3. THE UNIVERSAL TRANSLATOR
-  // Automatically fixes missing or mismatched variables depending on where the user came from
-  const equipment = {
-    ...rawEquipment,
-    name: rawEquipment.name || rawEquipment.equipmentName || "Unknown Equipment",
-    price_per_day: rawEquipment.price_per_day || rawEquipment.totalAmount || rawEquipment.price || 0,
-    image_url: rawEquipment.image_url || rawEquipment.imageUrl || rawEquipment.image || null,
-    type: rawEquipment.type || rawEquipment.category || "General",
-    description: rawEquipment.description || "Equipment details from previous booking.",
-  };
-
-  // 🚨 Check where the user came from
-  const origin = location.state?.from || "marketplace";
-
-  // DYNAMIC FIX 1: Check if this item is already saved when the page loads
-  useEffect(() => {
-    if (equipment) {
-      const savedItems = JSON.parse(localStorage.getItem("savedEquipment") || "[]");
-      // Use equipment.id if available, otherwise fallback to equipment.name for uniqueness
-      const isSaved = savedItems.some(item => item.id === equipment.id || item.name === equipment.name);
-      setWishlist(isSaved);
-    }
-  }, [equipment]);
-
-  // DYNAMIC FIX 2: Toggle Save/Unsave in localStorage
-  const toggleSave = () => {
-    const savedItems = JSON.parse(localStorage.getItem("savedEquipment") || "[]");
-
-    if (wishlist) {
-      // Remove it from saved items
-      const updatedItems = savedItems.filter(item =>
-        item.id ? item.id !== equipment.id : item.name !== equipment.name
-      );
-      localStorage.setItem("savedEquipment", JSON.stringify(updatedItems));
-      setWishlist(false);
-    } else {
-      // Add it to saved items
-      savedItems.push(equipment);
-      localStorage.setItem("savedEquipment", JSON.stringify(savedItems));
-      setWishlist(true);
-    }
-  };
-
-  // 4. Unpack the description data safely (Using our regex trick!)
   const descMatch = equipment.description?.match(/Brand: (.*?)\| Model: (.*?)\n\n([\s\S]*?)\n\nListing Intent: (.*)/);
   const brand = descMatch ? descMatch[1].trim() : "FarmEase";
   const modelYear = descMatch ? descMatch[2].trim() : "Standard";
@@ -70,7 +98,6 @@ export default function EquipmentDetailPage() {
   const listingIntent = descMatch ? descMatch[4].trim() : "Rent";
   const isSelling = listingIntent.toLowerCase() === "sell";
 
-  // 🚨 DYNAMIC BREADCRUMB MAP
   const breadcrumbMap = {
     "marketplace": { label: t("marketplace") || "Marketplace", path: "/marketplace" },
     "my-bookings": { label: t("myBookings") || "My Bookings", path: "/my-bookings" },
@@ -78,10 +105,8 @@ export default function EquipmentDetailPage() {
     "search": { label: t("search") || "Search", path: "/search" }
   };
 
-  // Grab the correct setup, defaulting to marketplace if something goes wrong
   const currentBreadcrumb = breadcrumbMap[origin] || breadcrumbMap["marketplace"];
 
-  // 5. Handle Images safely
   const images = equipment.image_url || equipment.image
     ? [equipment.image_url || equipment.image]
     : ["https://images.unsplash.com/photo-1592982537447-6f23b361bbcc?w=400&q=80"];
@@ -145,7 +170,6 @@ export default function EquipmentDetailPage() {
           {/* RIGHT — Details */}
           <div className="flex-1 min-w-0">
 
-            {/* Badges */}
             <div className="flex gap-2 mb-3 flex-wrap">
               <span className="text-xs font-bold px-2 py-1 rounded bg-green-100 text-green-800 tracking-wide">
                 {listingIntent}
@@ -157,7 +181,6 @@ export default function EquipmentDetailPage() {
               )}
             </div>
 
-            {/* Title + Wishlist */}
             <div className="flex items-start justify-between mb-1 gap-2">
               <h1 className="text-xl md:text-2xl font-bold leading-tight capitalize">
                 {equipment.name}
@@ -169,7 +192,6 @@ export default function EquipmentDetailPage() {
               </button>
             </div>
 
-            {/* Location */}
             <div className="flex items-center text-sm text-gray-500 mb-4 capitalize">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="#6b7280" className="mr-1 shrink-0">
                 <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
@@ -177,7 +199,6 @@ export default function EquipmentDetailPage() {
               {equipment.location || equipment.district}, {equipment.state || ""}
             </div>
 
-            {/* Price */}
             <div className="flex items-baseline gap-4 mb-5 flex-wrap">
               <span className="text-2xl font-bold text-gray-900">
                 {isSelling
@@ -186,7 +207,6 @@ export default function EquipmentDetailPage() {
               </span>
             </div>
 
-            {/* Owner / Posted / Status */}
             <div className="flex flex-wrap gap-x-7 gap-y-3 mb-6">
               <div>
                 <p className="text-xs font-semibold text-gray-400 tracking-widest uppercase">{t("owner")}</p>
@@ -204,7 +224,6 @@ export default function EquipmentDetailPage() {
               </div>
             </div>
 
-            {/* Contact Owner Button */}
             <button
               onClick={() => alert(`Connecting to owner at: ${equipment.contact_number || "Number not provided"}`)}
               className="w-full flex items-center justify-center gap-2 bg-green-700 hover:bg-green-800 text-white font-semibold py-3 rounded-lg mb-3 transition-colors duration-200 cursor-pointer"
@@ -215,7 +234,6 @@ export default function EquipmentDetailPage() {
               {t("contactOwner")}
             </button>
 
-            {/* 🚨 THE CRITICAL LINK TO PAYMENTS */}
             <button
               onClick={() => navigate("/payment", { state: { equipment } })}
               className="w-full flex items-center justify-center gap-2 border-2 border-green-700 text-green-700 hover:bg-green-700 hover:text-white font-semibold py-3 rounded-lg mb-6 transition-colors duration-200 cursor-pointer"
@@ -226,7 +244,6 @@ export default function EquipmentDetailPage() {
               {t("bookNow")}
             </button>
 
-            {/* Specs Card */}
             <div className="border border-gray-200 rounded-xl overflow-hidden mb-6">
               <h3 className="text-sm font-bold px-4 py-3 border-b border-gray-200 bg-white">
                 {t("equipmentSpecifications")}

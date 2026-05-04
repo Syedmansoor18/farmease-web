@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { useLanguage } from "../context/LanguageContext";
+import { useLanguage } from "../Context/LanguageContext";
 import { supabase } from "../supabaseClient";
 
 export default function MyPostings() {
@@ -16,9 +16,7 @@ export default function MyPostings() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [postToDelete, setPostToDelete] = useState(null);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+
 
   const fetchDashboardData = async () => {
     try {
@@ -86,6 +84,10 @@ export default function MyPostings() {
       setIsLoading(false);
     }
   };
+
+    useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
   // 🚨 THE APPROVAL LOGIC
   const handleAcceptRequest = async (request) => {

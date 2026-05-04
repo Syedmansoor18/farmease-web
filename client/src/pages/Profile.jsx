@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { useLanguage } from "../context/LanguageContext";
+import { useLanguage } from "../Context/LanguageContext";
 import { supabase } from "../supabaseClient";
 
 const StatsBar = ({ t, listingsCount, rating, savedCount, aadhaarVerified, kisanVerified }) => (
@@ -18,7 +18,7 @@ const StatsBar = ({ t, listingsCount, rating, savedCount, aadhaarVerified, kisan
       </span>
     </div>
 
-    {/* 🚨 FIXED: KISAN ID (Text is now dynamic!) */}
+    {/* KISAN ID */}
     <div className="flex flex-col items-center gap-0.5">
       <svg viewBox="0 0 24 24" className={`w-6 h-6 ${kisanVerified ? 'fill-green-600' : 'fill-yellow-500'}`}>
         <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6zm0 4h8v2H6zm4-4h8v2h-8z"/>
@@ -171,14 +171,14 @@ export default function Profile() {
         }
 
         if (user) {
-          // Fetch Bookings
+          // 1. Fetch Bookings
           const bookingsRes = await fetch(`http://localhost:5000/api/bookings?user_id=${user.id}`);
           if (bookingsRes.ok) {
             const bData = await bookingsRes.json();
             setMyBookings(bData.slice(0, 5));
           }
 
-          // Fetch Postings
+          // 2. Fetch Postings
           const postingsRes = await fetch(`http://localhost:5000/api/my-postings?user_id=${user.id}`);
           if (postingsRes.ok) {
             const pData = await postingsRes.json();
@@ -190,6 +190,13 @@ export default function Profile() {
             }));
             setMyPostings(formattedPostings.slice(0, 5));
           }
+
+          // 🚨 3. NEW: Fetch Real Saved Equipment from Database!
+          const savedRes = await fetch(`http://localhost:5000/api/saved?user_id=${user.id}`);
+          if (savedRes.ok) {
+            const sData = await savedRes.json();
+            setSavedEquipment(sData.slice(0, 5)); 
+          }
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -199,15 +206,34 @@ export default function Profile() {
     fetchData();
   }, []);
 
-  useEffect(() => {
-    const items = JSON.parse(localStorage.getItem("savedEquipment") || "[]");
-    setSavedEquipment(items.slice(0, 5));
-  }, []);
-
-  const handleRemoveSaved = (itemToRemove) => {
-    const updatedItems = savedEquipment.filter(item => item.id ? item.id !== itemToRemove.id : item.name !== itemToRemove.name);
+  // 🚨 NEW: The Database Delete Handler
+  const handleRemoveSaved = async (itemToRemove) => {
+    // Optimistic UI Update: Remove it from the screen immediately
+    const updatedItems = savedEquipment.filter(item => item.id !== itemToRemove.id);
     setSavedEquipment(updatedItems);
-    localStorage.setItem("savedEquipment", JSON.stringify(updatedItems));
+
+    try {
+      // Find out who is logged in
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Tell the backend to delete it from the saved_equipment table
+      const response = await fetch("http://localhost:5000/api/saved/toggle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user.id,
+          equipment_id: itemToRemove.id
+        })
+      });
+
+      if (!response.ok) throw new Error("Failed to delete from database");
+
+    } catch (error) {
+      console.error("Database deletion failed:", error);
+      // If it fails, put the item back on the screen
+      setSavedEquipment(savedEquipment);
+    }
   };
 
   const accountSettings = [
@@ -269,7 +295,6 @@ export default function Profile() {
                     }}
                   />
                 ))}
-                {/* INVISIBLE SPACERS */}
                 {Array.from({ length: Math.max(0, 5 - myBookings.length) }).map((_, i) => (
                   <div key={`booking-spacer-${i}`} className="flex-1 min-w-0 pointer-events-none opacity-0" />
                 ))}

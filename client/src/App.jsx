@@ -2,7 +2,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ChangePassword from "./pages/ChangePassword";
 import EditProfile from "./pages/EditProfile";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { LanguageProvider } from "./context/LanguageContext";
+import { LanguageProvider } from "./Context/LanguageContext";
 
 // ─── Landing Page Components ──────────────────────────────────────────────────
 import Hero from "./components/Hero";
@@ -69,10 +69,10 @@ export default function App() {
           <Route path="/saved-equipment" element={<SavedEquipment />} />
           <Route path="/my-bookings" element={<MyBookings />} />
           <Route path="/my-postings" element={<MyPostings />} />
-            <Route path="/profile" element={<Profile />} />
-<Route path="/edit-profile" element={<EditProfile />} /> {/* 🚨 ADD THIS LINE */}
-<Route path="/change-password" element={<ChangePassword />} />
-<Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/edit-profile" element={<EditProfile />} /> {/* 🚨 ADD THIS LINE */}
+          <Route path="/change-password" element={<ChangePassword />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
         </Routes>
       </BrowserRouter>
     </LanguageProvider>

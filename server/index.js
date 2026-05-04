@@ -337,3 +337,69 @@ app.get('/api/bookings', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ─── API ROUTE: FETCH SAVED EQUIPMENT ───
+app.get('/api/saved', async (req, res) => {
+  try {
+    const { user_id } = req.query;
+    if (!user_id) return res.status(400).json({ error: "User ID is required" });
+
+    // This fetches the saved records AND joins the equipment data perfectly!
+    const { data, error } = await supabase
+      .from('saved_equipment')
+      .select(`
+        equipment_id,
+        equipment_list (*)
+      `)
+      .eq('user_id', user_id);
+
+    if (error) throw error;
+
+    // Clean up the data so the frontend just gets a normal list of equipment
+    const savedItems = data.map(item => item.equipment_list).filter(Boolean);
+    
+    res.status(200).json(savedItems);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── API ROUTE: TOGGLE SAVED EQUIPMENT ───
+app.post('/api/saved/toggle', async (req, res) => {
+  try {
+    const { user_id, equipment_id } = req.body;
+    if (!user_id || !equipment_id) return res.status(400).json({ error: "Missing IDs" });
+
+    // 1. Check if the user already saved this item
+    const { data: existing, error: checkError } = await supabase
+      .from('saved_equipment')
+      .select('id')
+      .eq('user_id', user_id)
+      .eq('equipment_id', equipment_id)
+      .maybeSingle(); // maybeSingle allows returning null without throwing an error
+
+    if (checkError) throw checkError;
+
+    if (existing) {
+      // 2. It exists! That means the user clicked a RED heart to un-save it.
+      const { error: deleteError } = await supabase
+        .from('saved_equipment')
+        .delete()
+        .eq('id', existing.id);
+        
+      if (deleteError) throw deleteError;
+      return res.status(200).json({ action: 'removed' });
+      
+    } else {
+      // 3. It doesn't exist! The user clicked an EMPTY heart to save it.
+      const { error: insertError } = await supabase
+        .from('saved_equipment')
+        .insert([{ user_id, equipment_id }]);
+        
+      if (insertError) throw insertError;
+      return res.status(200).json({ action: 'added' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
