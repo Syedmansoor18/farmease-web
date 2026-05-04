@@ -1,11 +1,22 @@
 import { useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { supabase } from "../supabaseClient"; // Adjust path if needed
-// 🚨 IMPORTING OUR NEW DATA STORE:
+import { supabase } from "../supabaseClient";
 import { INDIA_DATA, STATE_NAMES } from "../data/indianStates";
-// 🌐 IMPORTING LANGUAGE CONTEXT
-import { useLanguage } from "../Context/LanguageContext";
+import { useLanguage } from "../context/LanguageContext";
+
+// 🚨 LEAFLET MAP IMPORTS
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from "leaflet";
+
+// 🚨 Fix for Vite + Leaflet Default Icons (Using CDN to bypass bundler issues)
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+});
 
 const ALL_CATEGORIES = [
   "Tractor","Harvester","Combine Harvester","Rotavator","Cultivator",
@@ -14,25 +25,48 @@ const ALL_CATEGORIES = [
   "Laser Land Leveller","Mulcher","Shredder","Tiller","Water Tanker",
 ];
 
+// THIS MUST SIT OUTSIDE THE MAIN COMPONENT TO PREVENT HOOK ERRORS
+const MapEvents = ({ setPinPosition, setVillage, setEquipState, setPincode, showToast }) => {
+  useMapEvents({
+    click: async (e) => {
+      const lat = e.latlng.lat;
+      const lng = e.latlng.lng;
+      setPinPosition([lat, lng]);
+
+      try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+        const data = await response.json();
+
+        const cityOrVillage = data.address.village || data.address.town || data.address.city || data.address.county || "";
+        const stateName = data.address.state || "";
+        const pin = data.address.postcode || "";
+
+        setVillage(cityOrVillage);
+        setEquipState(stateName);
+        setPincode(pin);
+        showToast("Location updated from map pin!");
+      } catch (error) {
+        console.error("Error fetching address:", error);
+      }
+    }
+  });
+  return null;
+};
+
 /* ─── Main Page ───────────────────────────────────────────────── */
 const EquipmentPostingPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-
-  // 🌐 Initialize Language Hook
   const { t } = useLanguage();
 
   const editData = location.state || {};
 
-  // 🚨 THE CRITICAL NEW STATE: Capture the DB ID if we are editing
   const [recordId, setRecordId]           = useState(editData.id || null);
-
   const [listingIntent, setListingIntent] = useState(editData.listingIntent || "Rent");
   const [condition, setCondition]         = useState(editData.condition || "Brand New");
   const [availableNow, setAvailableNow]   = useState(editData.availableNow ?? true);
   const [category, setCategory]           = useState(editData.category || "");
-  const [priceMin, setPriceMin]           = useState(editData.priceMin || "");
-  const [priceMax, setPriceMax]           = useState(editData.priceMax || "");
+  const [price, setPrice]                 = useState(editData.price || "");
   const [mainPhoto, setMainPhoto]         = useState(editData.mainPhoto || null);
   const [extraPhotos, setExtraPhotos]     = useState(editData.extraPhotos || []);
   const [dragOver, setDragOver]           = useState(false);
@@ -49,22 +83,25 @@ const EquipmentPostingPage = () => {
   const [village, setVillage]             = useState(editData.village || "");
   const [pincode, setPincode]             = useState(editData.pincode || "");
   const [showAltNumber, setShowAltNumber] = useState(false);
-  const [isLocating, setIsLocating] = useState(false);
-  
+  const [isLocating, setIsLocating]       = useState(false);
+
   const [locationToast, setLocationToast] = useState("");
   const [isSubmitting, setIsSubmitting]   = useState(false);
 
-  // 🚨 NEW PHONE VERIFICATION STATE
   const [phoneNumber, setPhoneNumber]     = useState(editData.phoneNumber || "");
   const [isVerified, setIsVerified]       = useState(false);
   const [isVerifying, setIsVerifying]     = useState(false);
   const [showOtpInput, setShowOtpInput]   = useState(false);
   const [otpValue, setOtpValue]           = useState("");
 
+  // MAP STATES
+  const [mapCenter, setMapCenter]         = useState([20.5937, 78.9629]);
+  const [mapZoom, setMapZoom]             = useState(4);
+  const [pinPosition, setPinPosition]     = useState(null);
+
   const mainInputRef  = useRef();
   const extraInputRef = useRef();
 
-  // 🚨 DYNAMIC DISTRICT LOOKUP
   const isOtherState = state === "other";
   const districts = state && !isOtherState ? INDIA_DATA[state] || [] : [];
 
@@ -74,38 +111,33 @@ const EquipmentPostingPage = () => {
   };
 
   const handleUseCurrentLocation = (e) => {
-    // Prevent the button from accidentally submitting the form!
-    e.preventDefault(); 
-
+    e.preventDefault();
     if (!navigator.geolocation) {
       alert("Geolocation is not supported by your browser.");
       return;
     }
 
     setIsLocating(true);
-
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
 
+        setMapCenter([lat, lng]);
+        setPinPosition([lat, lng]);
+        setMapZoom(13);
+
         try {
-          // 🚨 The Lead Engineer Upgrade: Free Reverse Geocoding via OpenStreetMap!
           const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
           const data = await response.json();
 
-          // OSM returns different names depending on rural vs urban areas, so we check a few options
           const cityOrVillage = data.address.village || data.address.town || data.address.city || data.address.county || "";
-          const state = data.address.state || "";
-          const pincode = data.address.postcode || "";
+          const stateName = data.address.state || "";
+          const pin = data.address.postcode || "";
 
-          // Auto-fill the form fields!
-          EquipmentPostingPage(prev => ({
-            ...prev,
-            village: cityOrVillage,
-            state: state,
-            pincode: pincode
-          }));
+          setVillage(cityOrVillage);
+          setState(stateName);
+          setPincode(pin);
 
         } catch (error) {
           console.error("Error fetching address:", error);
@@ -125,7 +157,7 @@ const EquipmentPostingPage = () => {
  const readFile = (file) =>
     new Promise((res) => {
       const reader = new FileReader();
-      reader.onload = (e) => res({ url: e.target.result, name: file.name, rawFile: file }); // 🚨 Added rawFile: file
+      reader.onload = (e) => res({ url: e.target.result, name: file.name, rawFile: file });
       reader.readAsDataURL(file);
     });
 
@@ -166,37 +198,40 @@ const EquipmentPostingPage = () => {
     }
   };
 
-// ─── DB SUBMISSION LOGIC (SECURE CLIENT-SERVER VERSION) ───
+  // 🚨 100% PURE BACKEND SUBMIT FUNCTION
   const handleSubmit = async () => {
     setIsSubmitting(true);
     showToast(recordId ? (t('updatingListing') || "Updating listing...") : (t('preparingListing') || "Preparing listing..."));
 
     try {
-      // 1. GET USER AUTH (Stays on frontend)
+      // Must be a real user from Supabase now!
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error(t('mustBeLoggedIn') || "You must be logged in to post equipment.");
+      if (!user) {
+        alert("You must be logged in to post equipment!");
+        setIsSubmitting(false);
+        return;
+      }
 
-      // 2. FORMAT THE DATA VARIABLES
       let dbCondition = 'good';
       if (condition === 'Brand New' || condition === 'New') dbCondition = 'excellent';
       if (condition === 'Used') dbCondition = 'fair';
 
       const fullDescription = `Brand: ${brand} | Model: ${modelYear}\n\n${description}\n\nListing Intent: ${listingIntent}`;
 
-      // 3. CLOUD IMAGE UPLOAD LOGIC (Stays on frontend)
-      let finalImageUrl = editData.image_url || null; // Keep existing image if editing
+      let finalImageUrl = editData.image_url || null;
 
+      // Real Supabase Storage Upload
       if (mainPhoto && mainPhoto.rawFile) {
-        showToast(t('uploadingImage') || "Uploading image to cloud...");
+        showToast("Uploading image to cloud...");
         const fileExt = mainPhoto.name.split('.').pop();
         const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `${user.id}/${fileName}`; 
+        const filePath = `${user.id}/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from('equipment-images')
           .upload(filePath, mainPhoto.rawFile);
 
-        if (uploadError) throw new Error((t('imageUploadFailed') || "Image upload failed: ") + uploadError.message);
+        if (uploadError) throw new Error("Image upload failed: " + uploadError.message);
 
         const { data: { publicUrl } } = supabase.storage
           .from('equipment-images')
@@ -205,15 +240,14 @@ const EquipmentPostingPage = () => {
         finalImageUrl = publicUrl;
       }
 
-      // 4. THE SECURE API PAYLOAD
       const dbPayload = {
-        recordId: recordId, // If null, server inserts. If ID exists, server updates.
-        user_id: user.id,   // Server uses this to securely look up the Farmer ID
+        recordId: recordId || undefined,
+        user_id: user.id,
         name: equipmentName,
         type: category,
         description: fullDescription,
-        price_per_day: parseFloat(priceMin) || 0,
-        is_free: parseFloat(priceMin) === 0,
+        price_per_day: parseFloat(price) || 0,
+        is_free: parseFloat(price) === 0,
         location: village || 'Not specified',
         district: district || customDistrict,
         state: state === 'other' ? customState : state,
@@ -221,10 +255,10 @@ const EquipmentPostingPage = () => {
         is_available: availableNow,
         condition: dbCondition,
         image_url: finalImageUrl,
-        contact_number: phoneNumber // Our newly verified number!
+        contact_number: phoneNumber
       };
 
-      // 5. SEND IT TO OUR NODE SERVER
+      // 🚨 SEND DIRECTLY TO BACKEND DATABASE
       const response = await fetch("http://localhost:5000/api/equipment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -232,22 +266,19 @@ const EquipmentPostingPage = () => {
       });
 
       const dbResponse = await response.json();
-      
-      if (!response.ok) throw new Error(dbResponse.error || "Failed to save equipment");
-      
-      const savedRecord = dbResponse.data; // The freshly saved row from the Server
-      
-      // Update local state so if they click post again without leaving, it updates
-      setRecordId(savedRecord.id); 
 
-      showToast(recordId ? (t('equipmentUpdated') || "Equipment updated successfully!") : (t('equipmentPosted') || "Equipment posted successfully!"));
+      if (!response.ok) {
+        throw new Error(dbResponse.error || "Backend failed to save the equipment.");
+      }
 
-      // Navigate to success screen
-      navigate("/post-success", { 
+      const savedRecord = dbResponse.data || dbResponse;
+      setRecordId(savedRecord.id);
+
+      navigate("/post-success", {
         state: {
-          id: savedRecord.id, 
-          equipmentName, category, brand, modelYear, condition, priceMin, priceMax, 
-          village, pincode, district, customDistrict, state, customState, description, 
+          id: savedRecord.id,
+          equipmentName, category, brand, modelYear, condition, price,
+          village, pincode, district, customDistrict, state, customState, description,
           listingIntent, availableNow, mainPhoto, extraPhotos,
           displayState: state === 'other' ? customState : state,
           displayDistrict: district || customDistrict
@@ -255,13 +286,12 @@ const EquipmentPostingPage = () => {
       });
 
     } catch (error) {
-      console.error("Error posting equipment:", error);
-      alert(error.message);
+      console.error("Critical Error posting equipment:", error);
+      alert(error.message); // If it fails, it will pop up and tell you why!
     } finally {
       setIsSubmitting(false);
     }
   };
-  
 
   return (
     <div className="bg-gray-50 min-h-screen flex" style={{ maxWidth: "100vw", overflowX: "hidden" }}>
@@ -282,7 +312,6 @@ const EquipmentPostingPage = () => {
               <input ref={extraInputRef} type="file" accept="image/*" multiple  className="hidden" onChange={(e) => handleExtraFiles(e.target.files)} />
 
               <div className="flex gap-3 items-start">
-                {/* Main photo drop-zone */}
                 <div
                   onClick={() => !mainPhoto && mainInputRef.current.click()}
                   onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -324,7 +353,6 @@ const EquipmentPostingPage = () => {
                   )}
                 </div>
 
-                {/* Extra thumbnails */}
                 <div className="flex flex-col gap-2">
                   {extraPhotos.map((photo, i) => (
                     <div
@@ -360,7 +388,7 @@ const EquipmentPostingPage = () => {
               <p className="text-xs text-gray-400 mt-2">
                 {mainPhoto
                   ? `1 ${t('main') || "main"} + ${extraPhotos.length} ${t('additionalPhotos') || "additional photo(s)"}`
-                  : (t('noPhotosUploaded') || "No photos uploaded yet — click or drag an image above")}
+                  : (t('No Photos Uploaded') || "No photos uploaded yet — click or drag an image above")}
               </p>
             </div>
 
@@ -375,7 +403,7 @@ const EquipmentPostingPage = () => {
                     type="text"
                     value={equipmentName}
                     onChange={(e) => setEquipmentName(e.target.value)}
-                    placeholder={t('egJohnDeere') || "e.g. John Deere 5050E"}
+                    placeholder={t('e.g. John Deere 5050E') || "e.g. John Deere 5050E"}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 placeholder-gray-300 focus:outline-none focus:border-green-500 bg-white"
                   />
                 </div>
@@ -399,7 +427,7 @@ const EquipmentPostingPage = () => {
                     type="text"
                     value={brand}
                     onChange={(e) => setBrand(e.target.value)}
-                    placeholder={t('egMahindra') || "e.g. Mahindra"}
+                    placeholder={t('e.g. Mahindra') || "e.g. Mahindra"}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 placeholder-gray-300 focus:outline-none focus:border-green-500 bg-white"
                   />
                 </div>
@@ -409,7 +437,7 @@ const EquipmentPostingPage = () => {
                     type="text"
                     value={modelYear}
                     onChange={(e) => setModelYear(e.target.value)}
-                    placeholder={t('egEdition') || "e.g. 2023 Edition"}
+                    placeholder={t('e.g. 2023 Edition') || "e.g. 2023 Edition"}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 placeholder-gray-300 focus:outline-none focus:border-green-500 bg-white"
                   />
                 </div>
@@ -421,7 +449,7 @@ const EquipmentPostingPage = () => {
                   rows={3}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder={t('descriptionPlaceholder') || "Tell potential buyers/renters about the history and maintenance of your equipment..."}
+                  placeholder={t('Tell potential buyers/renters about the history and maintenance of your equipment...') || "Tell potential buyers/renters about the history and maintenance of your equipment..."}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 placeholder-gray-300 focus:outline-none focus:border-green-500 resize-none bg-white"
                 />
               </div>
@@ -453,7 +481,6 @@ const EquipmentPostingPage = () => {
               </div>
             </div>
 
-            {/* Listing Intent */}
             <div className="mb-5">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
                 {t('listingIntent') || "Listing Intent"}
@@ -463,54 +490,33 @@ const EquipmentPostingPage = () => {
                   <button
                     key={intent}
                     onClick={() => setListingIntent(intent)}
-                    className={`flex-1 py-2 text-xs font-medium transition-colors ${
-                      listingIntent === intent
+                    className={`flex-1 py-2 text-xs font-medium transition-colors capitalize ${
+                      listingIntent.toLowerCase() === intent.toLowerCase()
                         ? "bg-green-700 text-white"
                         : "bg-white text-gray-600 hover:bg-gray-50"
                     }`}
                   >
-                    {t(intent.toLowerCase()) || intent}
+                    {intent}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Price / Day */}
             <div className="mb-5">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                {t('pricePerDay') || "Price/Day (₹)"}
+                {listingIntent.toLowerCase() === "sell" ? (t('selling Price') || "Selling Price (₹)") : (t('pricePerDay') || "Price/Day (₹)")}
               </h2>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <label className="text-xs text-gray-400 mb-1 block">{t('perMin') || "Per Min"}</label>
-                  <div className="flex items-center border border-gray-200 rounded-lg bg-white focus-within:border-green-500">
-                    <span className="pl-2 text-sm text-gray-400">₹</span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={priceMin}
-                      onChange={(e) => setPriceMin(e.target.value)}
-                      placeholder="0.00"
-                      className="flex-1 px-1.5 py-2 text-sm text-gray-700 bg-transparent focus:outline-none w-full"
-                    />
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <label className="text-xs text-gray-400 mb-1 block">{t('perMax') || "Per Max"}</label>
-                  <div className="flex items-center border border-gray-200 rounded-lg bg-white focus-within:border-green-500">
-                    <span className="pl-2 text-sm text-gray-400">₹</span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={priceMax}
-                      onChange={(e) => setPriceMax(e.target.value)}
-                      placeholder="0.00"
-                      className="flex-1 px-1.5 py-2 text-sm text-gray-700 bg-transparent focus:outline-none w-full"
-                    />
-                  </div>
-                </div>
+              <div className="flex items-center border border-gray-200 rounded-lg bg-white focus-within:border-green-500">
+                <span className="pl-3 text-sm text-gray-400">₹</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  placeholder={listingIntent.toLowerCase() === "sell" ? "e.g., 50000" : "e.g., 1500"}
+                  className="flex-1 px-3 py-3 text-sm text-gray-700 bg-transparent focus:outline-none w-full"
+                />
               </div>
             </div>
 
@@ -547,7 +553,6 @@ const EquipmentPostingPage = () => {
                   className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs text-gray-600 focus:outline-none bg-white"
                 >
                   <option value="">{t('selectState') || "Select State"}</option>
-                  {/* 🚨 USING INDIAN_STATES JSON DATA HERE */}
                   {STATE_NAMES.map((val) => (
                     <option key={val} value={val}>{val}</option>
                   ))}
@@ -561,7 +566,6 @@ const EquipmentPostingPage = () => {
                     className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs text-gray-600 focus:outline-none bg-white"
                   >
                     <option value="">{t('selectDistrict') || "Select District"}</option>
-                    {/* 🚨 USING INDIAN_STATES JSON DATA HERE */}
                     {districts.map((d) => <option key={d} value={d}>{d}</option>)}
                   </select>
                 ) : (
@@ -579,7 +583,7 @@ const EquipmentPostingPage = () => {
               {isOtherState && (
                 <input
                   type="text"
-                  placeholder={t('typeState') || "Type your state..."}
+                  placeholder={t('typeYourState') || "Type your state..."}
                   value={customState}
                   onChange={(e) => setCustomState(e.target.value)}
                   className="w-full mb-2 border border-green-300 rounded-lg px-2 py-2 text-xs text-gray-700 placeholder-gray-300 focus:outline-none focus:border-green-500"
@@ -604,22 +608,28 @@ const EquipmentPostingPage = () => {
                 />
               </div>
 
-              {/* Map placeholder */}
-              <div className="w-full h-24 bg-gray-100 rounded-xl overflow-hidden relative">
-                <div
-                  className="absolute inset-0 opacity-20"
-                  style={{
-                    backgroundImage:
-                      "linear-gradient(#b0c4a0 1px, transparent 1px), linear-gradient(90deg, #b0c4a0 1px, transparent 1px)",
-                    backgroundSize: "20px 20px",
-                  }}
-                />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-4 h-4 bg-green-600 rounded-full flex items-center justify-center shadow-md">
-                    <div className="w-2 h-2 bg-white rounded-full" />
-                  </div>
+              {/* 🚨 REAL LEAFLET MAP */}
+              <div className="w-full h-40 bg-gray-100 rounded-xl overflow-hidden relative z-0 border border-gray-200">
+                <MapContainer center={mapCenter} zoom={mapZoom} style={{ height: '100%', width: '100%' }}>
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+
+                  <MapEvents
+                    setPinPosition={setPinPosition}
+                    setVillage={setVillage}
+                    setEquipState={setState}
+                    setPincode={setPincode}
+                    showToast={showToast}
+                  />
+
+                  {pinPosition && <Marker position={pinPosition} />}
+                </MapContainer>
+
+                {/* Tiny overlay instruction */}
+                <div className="absolute bottom-2 left-2 right-2 bg-white/90 backdrop-blur text-xs text-gray-600 px-2 py-1 rounded-md text-center shadow-sm pointer-events-none z-[1000]">
+                  Click map to drop a pin & auto-fill address
                 </div>
               </div>
+
             </div>
           </div>
           {/* ══ END RIGHT COLUMN ══════════════════════════════════════ */}
@@ -649,93 +659,105 @@ const EquipmentPostingPage = () => {
         </div>
 
         {/* Contact Information */}
-        {/* --- PRIMARY CONTACT NUMBER & VERIFICATION BLOCK --- */}
-<div className="bg-white border border-gray-100 rounded-xl px-4 py-4 mb-4">
-  <label className="block text-sm font-medium text-gray-700 mb-2">
-    Primary Contact Number <span className="text-red-500">*</span>
-  </label>
-  
-  <div className="flex flex-col sm:flex-row gap-3">
-    {/* The Phone Input */}
-    <input
-      type="tel"
-      placeholder="e.g. 9876543210"
-      maxLength="10"
-      value={phoneNumber}
-      onChange={(e) => setPhoneNumber(e.target.value)}
-      disabled={isVerified}
-      className={`flex-1 px-4 py-2.5 rounded-xl border ${
-        isVerified 
-          ? "bg-gray-50 border-green-200 text-gray-500 cursor-not-allowed" 
-          : "border-gray-200 focus:ring-2 focus:ring-green-500"
-      } outline-none transition-all text-sm`}
-    />
+        <div className="bg-white border border-gray-100 rounded-xl px-4 py-4 mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Primary Contact Number <span className="text-red-500">*</span>
+          </label>
 
-    {/* The Verification Logic */}
-    <div className="flex items-center">
-      {!isVerified ? (
-        <>
-          {!showOtpInput ? (
-            <button
-              type="button"
-              onClick={handleSendOTP}
-              disabled={isVerifying || !phoneNumber || phoneNumber.length < 10}
-              className="w-full sm:w-auto whitespace-nowrap bg-green-50 text-green-700 px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-green-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-green-200"
-            >
-              {isVerifying ? "Sending..." : "Verify Number"}
-            </button>
-          ) : (
-            <div className="flex gap-2 animate-fade-in w-full sm:w-auto">
-              <input
-                type="text"
-                maxLength="4"
-                placeholder="OTP"
-                value={otpValue}
-                onChange={(e) => setOtpValue(e.target.value)}
-                className="w-20 px-3 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-green-500 outline-none text-center tracking-widest text-sm"
-              />
-              <button
-                type="button"
-                onClick={handleConfirmOTP}
-                className="bg-green-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors"
-              >
-                Confirm
-              </button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="tel"
+              placeholder="e.g. 9876543210"
+              maxLength="10"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              disabled={isVerified}
+              className={`flex-1 px-4 py-2.5 rounded-xl border ${
+                isVerified 
+                  ? "bg-gray-50 border-green-200 text-gray-500 cursor-not-allowed" 
+                  : "border-gray-200 focus:ring-2 focus:ring-green-500"
+              } outline-none transition-all text-sm`}
+            />
+
+            <div className="flex items-center">
+              {!isVerified ? (
+                <>
+                  {!showOtpInput ? (
+                    <button
+                      type="button"
+                      onClick={handleSendOTP}
+                      disabled={isVerifying || !phoneNumber || phoneNumber.length < 10}
+                      className="w-full sm:w-auto whitespace-nowrap bg-green-50 text-green-700 px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-green-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-green-200"
+                    >
+                      {isVerifying ? "Sending..." : "Verify Number"}
+                    </button>
+                  ) : (
+                    <div className="flex gap-2 animate-fade-in w-full sm:w-auto">
+                      <input
+                        type="text"
+                        maxLength="4"
+                        placeholder="OTP"
+                        value={otpValue}
+                        onChange={(e) => setOtpValue(e.target.value)}
+                        className="w-20 px-3 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-green-500 outline-none text-center tracking-widest text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleConfirmOTP}
+                        className="bg-green-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors"
+                      >
+                        Confirm
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="w-full sm:w-auto flex items-center justify-center gap-2 bg-green-50 text-green-700 px-5 py-2.5 rounded-xl text-sm font-semibold border border-green-200">
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
+                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                  </svg>
+                  Verified
+                </div>
+              )}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowAltNumber(!showAltNumber)}
+            className="mt-4 w-full text-sm text-green-700 font-medium flex items-center justify-center gap-1 hover:underline"
+          >
+            {showAltNumber ? "- Remove Alternate Number" : "+ Add Alternate Number"}
+          </button>
+
+          {showAltNumber && (
+            <div className="mt-4 animate-fade-in flex flex-col gap-1 border-t border-gray-100 pt-3">
+              <label className="text-sm font-medium text-gray-700 mb-1">
+                {t('alternateNumber') || "Alternate Number"} <span className="text-gray-400 font-normal">(Optional)</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="tel"
+                  placeholder="10-digit mobile number"
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-green-500 outline-none transition-all text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => alert("Verification code sent to alternate number!")}
+                  className="bg-gray-100 hover:bg-gray-200 text-green-700 font-semibold px-5 rounded-xl border border-gray-200 transition-colors text-sm"
+                >
+                  Verify
+                </button>
+              </div>
             </div>
           )}
-        </>
-      ) : (
-        <div className="w-full sm:w-auto flex items-center justify-center gap-2 bg-green-50 text-green-700 px-5 py-2.5 rounded-xl text-sm font-semibold border border-green-200">
-          <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
-            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-          </svg>
-          Verified
         </div>
-      )}
-    </div>
-  </div>
-
-  {/* Keep your Alternate Number toggle here if you want it! */}
-  <button 
-    type="button" 
-    onClick={() => setShowAltNumber(!showAltNumber)}
-    className="mt-4 w-full text-sm text-green-700 font-medium flex items-center justify-center gap-1 hover:underline"
-  >
-    {showAltNumber ? "- Remove Alternate Number" : "+ Add Alternate Number"}
-  </button>
-
-  {showAltNumber && (
-    <div className="mt-3 animate-fade-in">
-      <input type="tel" placeholder="Enter Alternate Number" className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-green-500 outline-none transition-all text-sm"/>
-    </div>
-  )}
-</div>
 
         {/* Post Equipment button */}
         <button
           onClick={handleSubmit}
           disabled={isSubmitting}
-          className={`w-full ${isSubmitting ? 'bg-green-400' : 'bg-green-700 hover:bg-green-800'} text-white font-semibold rounded-xl py-3.5 flex items-center justify-center gap-2 transition-colors shadow-sm`}
+          className={`w-full ${isSubmitting ? 'bg-green-400' : 'bg-green-700 hover:bg-green-800'} text-white font-semibold rounded-xl py-3.5 flex items-center justify-center gap-2 transition-colors shadow-sm cursor-pointer`}
         >
           {isSubmitting ? (t('processing') || "Processing...") : (recordId ? (t('updateEquipment') || "Update Equipment") : (t('postEquipment') || "Post Equipment"))}
           <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
@@ -743,7 +765,7 @@ const EquipmentPostingPage = () => {
           </svg>
         </button>
         <p className="text-center text-xs text-gray-400 mt-2 mb-4">
-          {t('termsAgreementPrefix') || "By posting, you agree to Farmease's"}{" "}
+          {t('Terms Agreement Prefix') || "By posting, you agree to Farmease's"}{" "}
           <span className="underline cursor-pointer">{t('termsOfService') || "Terms of Service"}</span> {t('and') || "and"}{" "}
           <span className="underline cursor-pointer">{t('communityGuidelines') || "Community Guidelines"}</span>
         </p>

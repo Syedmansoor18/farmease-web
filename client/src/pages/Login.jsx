@@ -134,7 +134,12 @@ const Login = () => {
                 <input type="checkbox" className="accent-[#1A4D2E] w-3.5 h-3.5 md:w-4 md:h-4" />
                 <span className="text-xs md:text-sm font-bold text-[#1A4D2E]">Remember Me</span>
               </label>
-              <span className="text-xs md:text-sm font-bold text-[#1A4D2E] hover:underline cursor-pointer">
+
+              {/* 🚨 UPDATED: Added navigate to /forgot-password */}
+              <span
+                onClick={() => navigate('/forgot-password')}
+                className="text-xs md:text-sm font-bold text-[#1A4D2E] hover:underline cursor-pointer"
+              >
                 Forgot Password?
               </span>
             </div>

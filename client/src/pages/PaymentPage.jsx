@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useLocation, Navigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useLanguage } from "../context/LanguageContext";
+import { supabase } from "../supabaseClient"
 
 export default function PaymentPage() {
   const navigate = useNavigate();
@@ -19,15 +20,13 @@ export default function PaymentPage() {
     return <Navigate to="/marketplace" />;
   }
 
-  // 1. DETERMINE INTENT (Rent vs Sell)
   const descMatch = equipment.description?.match(/Listing Intent: (.*)/);
   const listingIntent = descMatch ? descMatch[1].trim().toLowerCase() : "rent";
   const isSelling = listingIntent === "sell";
 
-  // 2. DYNAMIC MATH LOGIC
-  const basePrice = equipment.price_per_day || 0; // If selling, this field acts as the total price
-  const rentalDays = 5; 
-  
+  const basePrice = equipment.price_per_day || equipment.price || 0;
+  const rentalDays = 5;
+
   let rentalCost = 0;
   let securityDeposit = 0;
   let totalAmount = 0;
@@ -42,7 +41,6 @@ export default function PaymentPage() {
 
   const equipmentImage = equipment.image || equipment.image_url || "https://images.unsplash.com/photo-1592982537447-6f23b361bbcc?w=400&q=80";
 
-  // 3. RAZORPAY SCRIPT LOADER
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
       const script = document.createElement("script");
@@ -53,7 +51,6 @@ export default function PaymentPage() {
     });
   };
 
-  // 4. THE LIVE PAYMENT HANDLER
   const handlePayment = async () => {
     const res = await loadRazorpayScript();
 
@@ -62,39 +59,109 @@ export default function PaymentPage() {
       return;
     }
 
-    // Razorpay Options Configuration
     const options = {
-      key: import.meta.env.VITE_RAZORPAY_KEY, // 🚨 PASTE YOUR RAZORPAY TEST KEY HERE (e.g., rzp_test_12345abcde)
-      amount: totalAmount * 100, // Razorpay strictly requires the amount in Paise (multiply by 100)
+      key: import.meta.env.VITE_RAZORPAY_KEY,
+      amount: totalAmount * 100,
       currency: "INR",
       name: "FarmEase",
       description: isSelling ? `Purchase: ${equipment.name}` : `Rental: ${equipment.name} (${rentalDays} Days)`,
-      image: "https://images.unsplash.com/photo-1592982537447-6f23b361bbcc?w=100&q=80", // Tiny logo for the payment window
-      handler: function (response) {
-        // This runs if the payment is SUCCESSFUL
-        console.log("Payment ID:", response.razorpay_payment_id);
-        
+      image: "https://images.unsplash.com/photo-1592982537447-6f23b361bbcc?w=100&q=80",
+      handler: async function (response) {
+
         setShowPopup(true);
         setIsSuccess(true);
-        
-        // Wait 2 seconds to show our success checkmark, then redirect
+
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+
+          const bookingStatus = isSelling ? "buyout" : "pending";
+
+          // 1. SAVE BOOKING TO NODE.JS BACKEND (Ensure backend saves this exact status!)
+          await fetch("http://localhost:5000/api/bookings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: user?.id,
+              equipmentId: equipment.id || equipment._id,
+              equipmentName: equipment.name,
+              totalAmount: totalAmount,
+              rentalDays: rentalDays,
+              isSelling: isSelling,
+              transactionId: response.razorpay_payment_id,
+              deliveryMode: deliveryMode,
+              imageUrl: equipmentImage,
+              status: bookingStatus
+            })
+          });
+
+          if (user) {
+            // 🚨 NOTIFICATION 1: For YOU (The Buyer/Renter)
+            const buyerTitle = isSelling ? "Purchase Successful!" : "Booking Request Sent!";
+            const buyerMessage = isSelling
+              ? `You have successfully purchased ${equipment.name}.`
+              : `Your request to rent ${equipment.name} for ${rentalDays} days has been sent to the owner.`;
+
+            await supabase.from("notifications").insert([{
+                user_id: user.id,
+                title: buyerTitle,
+                message: buyerMessage,
+                type: isSelling ? "success" : "info",
+                action_url: "/my-bookings",
+                is_read: false
+            }]);
+
+            // 🚨 NOTIFICATION 2: For THE OWNER
+            const ownerId = equipment.user_id || equipment.owner_id || equipment.userId;
+
+            // Make sure we only notify the owner if an owner ID exists, AND don't double-notify if you are testing by renting your own equipment!
+            if (ownerId && ownerId !== user.id) {
+              const ownerTitle = isSelling ? "New Purchase Order!" : "New Rental Request!";
+              const ownerMessage = isSelling
+                ? `Someone has purchased your ${equipment.name}. Please check My Postings.`
+                : `Someone wants to rent your ${equipment.name} for ${rentalDays} days. Please review it in My Postings.`;
+
+              await supabase.from("notifications").insert([{
+                  user_id: ownerId,
+                  title: ownerTitle,
+                  message: ownerMessage,
+                  type: "request",
+                  action_url: "/my-postings",
+                  is_read: false
+              }]);
+            }
+          }
+
+        } catch (error) {
+          console.error("Failed to save booking/notification to database:", error);
+        }
+
         setTimeout(() => {
-          navigate("/booking-success");
+          navigate("/booking-success", {
+            state: {
+              equipment,
+              totalAmount,
+              rentalCost,
+              securityDeposit,
+              rentalDays,
+              isSelling,
+              deliveryMode,
+              transactionId: response.razorpay_payment_id
+            }
+          });
         }, 2000);
       },
       prefill: {
         name: "FarmEase User",
         email: "user@farmease.com",
-        contact: "9876543210" // Standard dummy data for the MVP testing
+        contact: "9876543210"
       },
       theme: {
-        color: "#15803d" // Tailwind green-700 to match our UI branding perfectly
+        color: "#15803d"
       }
     };
 
     const paymentObject = new window.Razorpay(options);
-    
-    // Fallback if the user closes the window without paying
+
     paymentObject.on('payment.failed', function (response){
       alert(`Payment Failed! Reason: ${response.error.description}`);
     });
@@ -233,7 +300,6 @@ export default function PaymentPage() {
             <p className="text-sm font-semibold text-gray-700 mb-3">{t("selectPaymentMethod")}</p>
 
             <div className="space-y-3 mb-8">
-              {/* UPI */}
               <label className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === "upi" ? "border-green-600 bg-green-50" : "border-gray-200 bg-white"}`}>
                 <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-base">🟢</div>
                 <div className="flex-1">
@@ -243,7 +309,6 @@ export default function PaymentPage() {
                 <input type="radio" name="payment" value="upi" checked={paymentMethod === "upi"} onChange={() => setPaymentMethod("upi")} className="accent-green-600 w-4 h-4" />
               </label>
 
-              {/* CARD */}
               <label className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === "card" ? "border-green-600 bg-green-50" : "border-gray-200 bg-white"}`}>
                 <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-base">💳</div>
                 <div className="flex-1">
@@ -253,7 +318,6 @@ export default function PaymentPage() {
                 <input type="radio" name="payment" value="card" checked={paymentMethod === "card"} onChange={() => setPaymentMethod("card")} className="accent-green-600 w-4 h-4" />
               </label>
 
-              {/* 🚨 THE RESTORED NETBANKING OPTION */}
               <label className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${paymentMethod === "netbanking" ? "border-green-600 bg-green-50" : "border-gray-200 bg-white"}`}>
                 <div className="w-8 h-8 rounded-lg bg-yellow-100 flex items-center justify-center text-base">🏦</div>
                 <div className="flex-1">
@@ -263,7 +327,6 @@ export default function PaymentPage() {
                 <input type="radio" name="payment" value="netbanking" checked={paymentMethod === "netbanking"} onChange={() => setPaymentMethod("netbanking")} className="accent-green-600 w-4 h-4" />
               </label>
             </div>
-            
 
             <button
               onClick={handlePayment}
@@ -272,7 +335,6 @@ export default function PaymentPage() {
              Pay Securely — ₹{totalAmount.toLocaleString()}
             </button>
 
-            {/* Success Popup for Razorpay Redirect */}
             {showPopup && (
               <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
                 <div className="bg-white rounded-2xl p-6 w-[320px] text-center shadow-xl">
