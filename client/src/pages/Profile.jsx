@@ -144,31 +144,42 @@ export default function Profile() {
   const [savedEquipment, setSavedEquipment] = useState([]);
   const [myPostings, setMyPostings] = useState([]);
 
-  useEffect(() => {
+useEffect(() => {
     const fetchData = async () => {
       try {
         localStorage.removeItem("myPostings"); // Clean old ghosts
+        
+        // 🚨 WE DELETED LOCAL STORAGE HERE!
 
-        const savedProfile = JSON.parse(localStorage.getItem("userProfile"));
+        // 1. Ask Supabase Auth who is currently logged in
         const { data: { user } } = await supabase.auth.getUser();
 
-        if (savedProfile) {
+        if (user) {
+          // 2. Fetch their custom profile data from our new backend route
+          let dbProfile = {};
+          const profileRes = await fetch(`http://localhost:5000/api/profile?user_id=${user.id}`);
+          
+          if (profileRes.ok) {
+            dbProfile = await profileRes.json();
+          }
+
+          // 3. Merge the Auth data with the Database data
+          // (If they don't have a name in the DB yet, it falls back to their Auth metadata, then to a default)
+          const actualName = dbProfile.full_name || user.user_metadata?.full_name || user.user_metadata?.name || "Verified Farmer";
+          
+          // Generate a fallback ID if they don't have a real Kisan ID yet
+          const displayKisanId = dbProfile.kisan_id 
+            ? `ID: ${dbProfile.kisan_id}` 
+            : `ID: ${user.id.substring(0, 8).toUpperCase()}`;
+
+          // 4. Update the React State!
           setProfileData({
-            name: savedProfile.fullName || "Verified Farmer",
-            kisanId: savedProfile.kisanId ? `ID: ${savedProfile.kisanId}` : "ID: PENDING",
-            rating: "5.0",
-            aadhaarVerified: savedProfile.aadhaarVerified,
-            kisanVerified: savedProfile.kisanVerified,
+            name: actualName,
+            kisanId: displayKisanId,
+            rating: dbProfile.rating || "5.0",
+            aadhaarVerified: dbProfile.aadhaar_verified || false,
+            kisanVerified: dbProfile.kisan_verified || false,
           });
-        } else if (user) {
-          setProfileData({
-            name: user.user_metadata?.full_name || "Verified Farmer",
-            kisanId: "ID: " + user.id.substring(0, 8).toUpperCase(),
-            rating: "5.0",
-            aadhaarVerified: false,
-            kisanVerified: false,
-          });
-        }
 
         if (user) {
           // 1. Fetch Bookings
@@ -198,7 +209,7 @@ export default function Profile() {
             setSavedEquipment(sData.slice(0, 5)); 
           }
         }
-      } catch (error) {
+      }} catch (error) {
         console.error("Error fetching data:", error);
       }
     };

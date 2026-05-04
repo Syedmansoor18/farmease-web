@@ -403,3 +403,66 @@ app.post('/api/saved/toggle', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ─── API ROUTE: FETCH USER PROFILE ───
+app.get('/api/profile', async (req, res) => {
+  try {
+    const { user_id } = req.query;
+    if (!user_id) return res.status(400).json({ error: "User ID is required" });
+
+    // Fetch the custom profile data for this user
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user_id)
+      .single(); // Grab the one specific row
+
+    // If the user exists in Auth but doesn't have a profile row yet, just return an empty object
+    if (error && error.code === 'PGRST116') {
+      return res.status(200).json({});
+    }
+    if (error) throw error;
+
+    res.status(200).json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── API ROUTE: SAVE/UPDATE USER PROFILE ───
+app.post('/api/profile', async (req, res) => {
+  try {
+    const { 
+      id, 
+      full_name, 
+      phone, 
+      location, 
+      aadhaar_number, 
+      kisan_id, 
+      aadhaar_verified, 
+      kisan_verified 
+    } = req.body;
+
+    if (!id) return res.status(400).json({ error: "User ID is required" });
+
+    // 'upsert' will create a new row if the ID doesn't exist, or update it if it does!
+    const { data, error } = await supabase
+      .from('profiles')
+      .upsert({
+        id, // This is the user.id from Supabase Auth
+        full_name,
+        phone,
+        location,
+        aadhaar_number,
+        kisan_id,
+        aadhaar_verified,
+        kisan_verified
+      })
+      .select();
+
+    if (error) throw error;
+    res.status(200).json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
