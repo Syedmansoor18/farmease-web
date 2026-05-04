@@ -6,6 +6,8 @@ import { supabase } from "../supabaseClient";
 
 const StatsBar = ({ t, listingsCount, rating, savedCount, aadhaarVerified, kisanVerified }) => (
   <div className="flex items-center justify-around border-b border-gray-100 py-4 bg-white">
+
+    {/* AADHAAR */}
     <div className="flex flex-col items-center gap-0.5">
       <svg viewBox="0 0 24 24" className={`w-6 h-6 ${aadhaarVerified ? 'fill-green-600' : 'fill-yellow-500'}`}>
         <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
@@ -16,6 +18,7 @@ const StatsBar = ({ t, listingsCount, rating, savedCount, aadhaarVerified, kisan
       </span>
     </div>
 
+    {/* 🚨 FIXED: KISAN ID (Text is now dynamic!) */}
     <div className="flex flex-col items-center gap-0.5">
       <svg viewBox="0 0 24 24" className={`w-6 h-6 ${kisanVerified ? 'fill-green-600' : 'fill-yellow-500'}`}>
         <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM6 10h2v2H6zm0 4h8v2H6zm4-4h8v2h-8z"/>
@@ -207,7 +210,6 @@ export default function Profile() {
     localStorage.setItem("savedEquipment", JSON.stringify(updatedItems));
   };
 
-  // 🚨 FIXED: Added 'onClick: () => navigate("/change-password")'
   const accountSettings = [
     { id: 1, label: t("changePassword"), onClick: () => navigate("/change-password"), icon: (<svg viewBox="0 0 24 24" className="w-4 h-4 fill-current text-gray-500"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>) },
     { id: 2, label: t("languageSettings"), onClick: () => navigate("/language"), icon: (<svg viewBox="0 0 24 24" className="w-4 h-4 fill-current text-gray-500"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm6.93 6h-2.95c-.32-1.25-.78-2.45-1.38-3.56 1.84.63 3.37 1.91 4.33 3.56zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56-1.84-.63-3.37-1.9-4.33-3.56zm2.95-8H5.08c.96-1.66 2.49-2.93 4.33-3.56C8.81 5.55 8.35 6.75 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2s.07-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95c-.96 1.65-2.49 2.93-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z"/></svg>) },
@@ -246,16 +248,28 @@ export default function Profile() {
           />
         </div>
 
+        {/* CONTENT */}
         <div className="p-4 space-y-6">
 
-          {/* 🚨 FIXED: MY BOOKINGS SECTION */}
+          {/* MY BOOKINGS SECTION */}
           <ScrollSection title={t("myBookings")} onClick={() => navigate("/my-bookings")}>
             {myBookings.length > 0 ? (
               <>
                 {myBookings.map(item => (
-                  <BookingCard key={item._id || item.id} item={item} onClick={() => navigate("/equipment-detail", { state: { equipment: item } })} />
+                  <BookingCard
+                    key={item._id || item.id}
+                    item={item}
+                    onClick={() => {
+                      const actualEquipmentData = item.fullEquipment && Object.keys(item.fullEquipment).length > 0
+                        ? item.fullEquipment
+                        : item;
+                      navigate("/equipment-detail", {
+                        state: { equipment: actualEquipmentData, from: "profile" }
+                      });
+                    }}
+                  />
                 ))}
-                {/* INVISIBLE SPACERS: Forces the cards to stay exactly 1/5th size */}
+                {/* INVISIBLE SPACERS */}
                 {Array.from({ length: Math.max(0, 5 - myBookings.length) }).map((_, i) => (
                   <div key={`booking-spacer-${i}`} className="flex-1 min-w-0 pointer-events-none opacity-0" />
                 ))}
@@ -265,14 +279,13 @@ export default function Profile() {
             )}
           </ScrollSection>
 
-          {/* 🚨 FIXED: SAVED EQUIPMENT SECTION */}
+          {/* SAVED EQUIPMENT SECTION */}
           <ScrollSection title={t("savedEquipment")} onClick={() => navigate("/saved-equipment")}>
             {savedEquipment.length > 0 ? (
               <>
                 {savedEquipment.map((item, index) => (
                   <SavedCard key={item.id || index} item={item} onRemove={handleRemoveSaved} />
                 ))}
-                {/* INVISIBLE SPACERS: Forces the cards to stay exactly 1/5th size */}
                 {Array.from({ length: Math.max(0, 5 - savedEquipment.length) }).map((_, i) => (
                   <div key={`saved-spacer-${i}`} className="flex-1 min-w-0 pointer-events-none opacity-0" />
                 ))}
@@ -287,8 +300,6 @@ export default function Profile() {
             {myPostings.length > 0 ? (
               <>
                 {myPostings.map(item => <PostingCard key={item.id} item={item} />)}
-
-                {/* INVISIBLE SPACERS */}
                 {Array.from({ length: Math.max(0, 5 - myPostings.length) }).map((_, i) => (
                   <div key={`posting-spacer-${i}`} className="flex-1 min-w-0 pointer-events-none opacity-0" />
                 ))}

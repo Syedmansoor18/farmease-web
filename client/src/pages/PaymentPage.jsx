@@ -9,23 +9,43 @@ export default function PaymentPage() {
   const location = useLocation();
   const { t } = useLanguage();
 
+  // 1. ALL HOOKS MUST GO AT THE VERY TOP
   const [paymentMethod, setPaymentMethod] = useState("upi");
   const [deliveryMode, setDeliveryMode] = useState("self");
   const [showPopup, setShowPopup] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
 
+  // 🚨 Date Logic setup for hooks
+  const today = new Date().toISOString().split('T')[0];
+  const defaultEnd = new Date();
+  defaultEnd.setDate(defaultEnd.getDate() + 1);
+  const tomorrowStr = defaultEnd.toISOString().split('T')[0];
+
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState(tomorrowStr);
+
+  // 2. EARLY RETURN CHECK
   const equipment = location.state?.equipment;
 
   if (!equipment) {
     return <Navigate to="/marketplace" />;
   }
 
+  // 3. DETERMINE INTENT (Rent vs Sell)
   const descMatch = equipment.description?.match(/Listing Intent: (.*)/);
   const listingIntent = descMatch ? descMatch[1].trim().toLowerCase() : "rent";
   const isSelling = listingIntent === "sell";
 
-  const basePrice = equipment.price_per_day || equipment.price || 0;
-  const rentalDays = 5;
+  // 4. DYNAMIC DATE & MATH LOGIC
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const diffTime = end - start;
+  let calculatedDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  // Safety checks: minimum 1 day, and prevent negative days
+  if (calculatedDays <= 0 || isNaN(calculatedDays)) calculatedDays = 1;
+
+  const rentalDays = isSelling ? 0 : calculatedDays;
+  const basePrice = Number(equipment.price_per_day || equipment.price || 0);
 
   let rentalCost = 0;
   let securityDeposit = 0;
@@ -41,6 +61,7 @@ export default function PaymentPage() {
 
   const equipmentImage = equipment.image || equipment.image_url || "https://images.unsplash.com/photo-1592982537447-6f23b361bbcc?w=400&q=80";
 
+  // 5. RAZORPAY LOADER
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
       const script = document.createElement("script");
@@ -51,6 +72,7 @@ export default function PaymentPage() {
     });
   };
 
+  // 6. PAYMENT HANDLER
   const handlePayment = async () => {
     const res = await loadRazorpayScript();
 
@@ -69,14 +91,13 @@ export default function PaymentPage() {
       handler: async function (response) {
 
         setShowPopup(true);
-        setIsSuccess(true);
 
         try {
           const { data: { user } } = await supabase.auth.getUser();
 
           const bookingStatus = isSelling ? "buyout" : "pending";
 
-          // 1. SAVE BOOKING TO NODE.JS BACKEND (Ensure backend saves this exact status!)
+          // A. SAVE BOOKING TO NODE.JS BACKEND
           await fetch("http://localhost:5000/api/bookings", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -86,6 +107,8 @@ export default function PaymentPage() {
               equipmentName: equipment.name,
               totalAmount: totalAmount,
               rentalDays: rentalDays,
+              startDate: startDate,
+              endDate: endDate,
               isSelling: isSelling,
               transactionId: response.razorpay_payment_id,
               deliveryMode: deliveryMode,
@@ -95,7 +118,7 @@ export default function PaymentPage() {
           });
 
           if (user) {
-            // 🚨 NOTIFICATION 1: For YOU (The Buyer/Renter)
+            // NOTIFICATION 1: For YOU (The Buyer/Renter)
             const buyerTitle = isSelling ? "Purchase Successful!" : "Booking Request Sent!";
             const buyerMessage = isSelling
               ? `You have successfully purchased ${equipment.name}.`
@@ -110,10 +133,9 @@ export default function PaymentPage() {
                 is_read: false
             }]);
 
-            // 🚨 NOTIFICATION 2: For THE OWNER
+            // NOTIFICATION 2: For THE OWNER
             const ownerId = equipment.user_id || equipment.owner_id || equipment.userId;
 
-            // Make sure we only notify the owner if an owner ID exists, AND don't double-notify if you are testing by renting your own equipment!
             if (ownerId && ownerId !== user.id) {
               const ownerTitle = isSelling ? "New Purchase Order!" : "New Rental Request!";
               const ownerMessage = isSelling
@@ -143,6 +165,8 @@ export default function PaymentPage() {
               rentalCost,
               securityDeposit,
               rentalDays,
+              startDate,
+              endDate,
               isSelling,
               deliveryMode,
               transactionId: response.razorpay_payment_id
@@ -221,15 +245,33 @@ export default function PaymentPage() {
               {/* Conditional Dates based on Rent/Sell */}
               <div className="px-4 py-3 flex gap-6 border-b border-gray-200 bg-gray-50">
                 <div>
-                  <p className="text-xs text-gray-400 uppercase font-semibold tracking-wide mb-1">
-                    {isSelling ? "Date" : t("startDate")}
-                  </p>
-                  <p className="text-sm font-semibold">Today</p>
+                  <label className="text-xs text-gray-400 uppercase font-semibold tracking-wide mb-1">
+                    {isSelling ? "Date" : t("startDate") || "Start Date"}
+                  </label>
+                  {isSelling ? (
+                    <p className="text-sm font-semibold">Today</p>
+                  ) : (
+                    <input
+                      type="date"
+                      value={startDate}
+                      min={today}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full text-sm font-semibold bg-transparent border-none p-0 focus:ring-0 cursor-pointer outline-none text-gray-800"
+                    />
+                  )}
                 </div>
                 {!isSelling && (
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase font-semibold tracking-wide mb-1">{t("endDate")}</p>
-                    <p className="text-sm font-semibold">+{rentalDays} Days</p>
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-400 uppercase font-semibold tracking-wide mb-1">
+                      {t("endDate") || "End Date"}
+                    </label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      min={startDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full text-sm font-semibold bg-transparent border-none p-0 focus:ring-0 cursor-pointer outline-none text-gray-800"
+                    />
                   </div>
                 )}
               </div>

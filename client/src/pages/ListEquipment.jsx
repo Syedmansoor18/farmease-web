@@ -25,7 +25,7 @@ const ALL_CATEGORIES = [
   "Laser Land Leveller","Mulcher","Shredder","Tiller","Water Tanker",
 ];
 
-// THIS MUST SIT OUTSIDE THE MAIN COMPONENT TO PREVENT HOOK ERRORS
+// 🚨 THIS MUST SIT OUTSIDE THE MAIN COMPONENT TO PREVENT HOOK ERRORS
 const MapEvents = ({ setPinPosition, setVillage, setEquipState, setPincode, showToast }) => {
   useMapEvents({
     click: async (e) => {
@@ -123,6 +123,7 @@ const EquipmentPostingPage = () => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
 
+        // Update Map!
         setMapCenter([lat, lng]);
         setPinPosition([lat, lng]);
         setMapZoom(13);
@@ -199,7 +200,8 @@ const EquipmentPostingPage = () => {
   };
 
   // 🚨 100% PURE BACKEND SUBMIT FUNCTION
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setIsSubmitting(true);
     showToast(recordId ? (t('updatingListing') || "Updating listing...") : (t('preparingListing') || "Preparing listing..."));
 
@@ -211,6 +213,7 @@ const EquipmentPostingPage = () => {
         setIsSubmitting(false);
         return;
       }
+      console.log("✅ 1. Data saved to database!");
 
       let dbCondition = 'good';
       if (condition === 'Brand New' || condition === 'New') dbCondition = 'excellent';
@@ -274,19 +277,35 @@ const EquipmentPostingPage = () => {
       const savedRecord = dbResponse.data || dbResponse;
       setRecordId(savedRecord.id);
 
+      showToast(recordId ? (t('equipmentUpdated') || "Equipment updated successfully!") : (t('equipmentPosted') || "Equipment posted successfully!"));
+      console.log("✅ 2. About to navigate...");
+
       navigate("/post-success", {
         state: {
           id: savedRecord.id,
-          equipmentName, category, brand, modelYear, condition, price,
-          village, pincode, district, customDistrict, state, customState, description,
-          listingIntent, availableNow, mainPhoto, extraPhotos,
+          equipmentName,
+          category,
+          brand,
+          modelYear,
+          condition,
+          price,
+          village,
+          pincode,
+          district,
+          customDistrict,
+          state: state === 'other' ? customState : state,
+          customState,
+          description,
+          listingIntent,
+          availableNow,
+          image_url: finalImageUrl, // Safely passing the cloud URL
           displayState: state === 'other' ? customState : state,
           displayDistrict: district || customDistrict
         }
       });
 
     } catch (error) {
-      console.error("Critical Error posting equipment:", error);
+      console.error("🚨 3. CRASH IN SUBMIT:", error);
       alert(error.message); // If it fails, it will pop up and tell you why!
     } finally {
       setIsSubmitting(false);
@@ -530,7 +549,7 @@ const EquipmentPostingPage = () => {
                     type="button"
                     onClick={handleUseCurrentLocation}
                     disabled={isLocating}
-                    className="text-xs text-green-700 font-medium hover:underline flex items-center gap-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="text-xs text-green-700 font-medium hover:underline flex items-center gap-0.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     <svg viewBox="0 0 24 24" className={`w-3 h-3 fill-current ${isLocating ? 'animate-pulse' : ''}`}>
                       <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
@@ -550,7 +569,7 @@ const EquipmentPostingPage = () => {
                 <select
                   value={state}
                   onChange={(e) => { setState(e.target.value); setDistrict(""); setCustomState(""); setCustomDistrict(""); }}
-                  className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs text-gray-600 focus:outline-none bg-white"
+                  className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs text-gray-600 focus:outline-none bg-white cursor-pointer"
                 >
                   <option value="">{t('selectState') || "Select State"}</option>
                   {STATE_NAMES.map((val) => (
@@ -563,7 +582,7 @@ const EquipmentPostingPage = () => {
                   <select
                     value={district}
                     onChange={(e) => setDistrict(e.target.value)}
-                    className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs text-gray-600 focus:outline-none bg-white"
+                    className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs text-gray-600 focus:outline-none bg-white cursor-pointer"
                   >
                     <option value="">{t('selectDistrict') || "Select District"}</option>
                     {districts.map((d) => <option key={d} value={d}>{d}</option>)}
@@ -609,7 +628,7 @@ const EquipmentPostingPage = () => {
               </div>
 
               {/* 🚨 REAL LEAFLET MAP */}
-              <div className="w-full h-40 bg-gray-100 rounded-xl overflow-hidden relative z-0 border border-gray-200">
+              <div className="w-full h-40 bg-gray-100 rounded-xl overflow-hidden relative z-0 border border-gray-200 cursor-pointer">
                 <MapContainer center={mapCenter} zoom={mapZoom} style={{ height: '100%', width: '100%' }}>
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
@@ -646,7 +665,7 @@ const EquipmentPostingPage = () => {
           </div>
           <button
             onClick={() => setAvailableNow(!availableNow)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
               availableNow ? "bg-green-600" : "bg-gray-300"
             }`}
           >
@@ -687,7 +706,7 @@ const EquipmentPostingPage = () => {
                       type="button"
                       onClick={handleSendOTP}
                       disabled={isVerifying || !phoneNumber || phoneNumber.length < 10}
-                      className="w-full sm:w-auto whitespace-nowrap bg-green-50 text-green-700 px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-green-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-green-200"
+                      className="w-full sm:w-auto whitespace-nowrap bg-green-50 text-green-700 px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-green-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-green-200 cursor-pointer"
                     >
                       {isVerifying ? "Sending..." : "Verify Number"}
                     </button>
@@ -704,7 +723,7 @@ const EquipmentPostingPage = () => {
                       <button
                         type="button"
                         onClick={handleConfirmOTP}
-                        className="bg-green-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors"
+                        className="bg-green-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors cursor-pointer"
                       >
                         Confirm
                       </button>
@@ -725,7 +744,7 @@ const EquipmentPostingPage = () => {
           <button
             type="button"
             onClick={() => setShowAltNumber(!showAltNumber)}
-            className="mt-4 w-full text-sm text-green-700 font-medium flex items-center justify-center gap-1 hover:underline"
+            className="mt-4 w-full text-sm text-green-700 font-medium flex items-center justify-center gap-1 hover:underline cursor-pointer bg-transparent border-none"
           >
             {showAltNumber ? "- Remove Alternate Number" : "+ Add Alternate Number"}
           </button>
@@ -744,7 +763,7 @@ const EquipmentPostingPage = () => {
                 <button
                   type="button"
                   onClick={() => alert("Verification code sent to alternate number!")}
-                  className="bg-gray-100 hover:bg-gray-200 text-green-700 font-semibold px-5 rounded-xl border border-gray-200 transition-colors text-sm"
+                  className="bg-gray-100 hover:bg-gray-200 text-green-700 font-semibold px-5 rounded-xl border border-gray-200 transition-colors text-sm cursor-pointer"
                 >
                   Verify
                 </button>
@@ -754,12 +773,12 @@ const EquipmentPostingPage = () => {
         </div>
 
         {/* Post Equipment button */}
-        <button
+        <button type="button"
           onClick={handleSubmit}
           disabled={isSubmitting}
           className={`w-full ${isSubmitting ? 'bg-green-400' : 'bg-green-700 hover:bg-green-800'} text-white font-semibold rounded-xl py-3.5 flex items-center justify-center gap-2 transition-colors shadow-sm cursor-pointer`}
         >
-          {isSubmitting ? (t('processing') || "Processing...") : (recordId ? (t('updateEquipment') || "Update Equipment") : (t('postEquipment') || "Post Equipment"))}
+          {isSubmitting ? (t('Processing') || "Processing...") : (recordId ? (t('Update Equipment') || "Update Equipment") : (t('Post Equipment') || "Post Equipment"))}
           <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
             <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
           </svg>

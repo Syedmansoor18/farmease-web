@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, useLocation, Navigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { useLanguage } from "../context/LanguageContext";
-import { supabase } from "../supabaseClient"; // 🚨 ADDED SUPABASE IMPORT
+import { supabase } from "../supabaseClient";
 
 const Postingsuccessfulpage = () => {
   const navigate = useNavigate();
@@ -191,8 +191,8 @@ const Postingsuccessfulpage = () => {
 
           {/* Buttons */}
           <div className="px-4 sm:px-8 pb-8">
-            <button onClick={() => navigate("/profile")} className="w-full bg-green-700 hover:bg-green-800 text-white font-semibold rounded-xl py-4 text-base transition-colors mb-3 cursor-pointer">
-              {t("viewMyPostings") || "Go to My Profile"}
+            <button onClick={() => navigate("/my-postings")} className="w-full bg-green-700 hover:bg-green-800 text-white font-semibold rounded-xl py-4 text-base transition-colors mb-3 cursor-pointer">
+              {t("viewMyPostings") || "View My Postings"}
             </button>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
 
@@ -206,6 +206,7 @@ const Postingsuccessfulpage = () => {
               <button onClick={() => navigate("/list-equipment")} className="flex-1 border border-gray-300 text-gray-700 font-medium rounded-xl py-3.5 text-base hover:bg-gray-50 cursor-pointer">
                 {t("postAnother") || "Post Another"}
               </button>
+
             </div>
           </div>
 

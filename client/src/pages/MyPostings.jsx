@@ -115,7 +115,7 @@ export default function MyPostings() {
     }
   };
 
-  // Triggered when they click the delete button
+  // Triggered when they click the trash can icon
   const confirmDelete = (id) => {
     setPostToDelete(id);
     setShowDeleteModal(true);
@@ -126,13 +126,17 @@ export default function MyPostings() {
     if (!postToDelete) return;
 
     try {
+      // Tell the Node server to delete it from Supabase
       const response = await fetch(`http://localhost:5000/api/equipment/${postToDelete}`, {
         method: "DELETE"
       });
 
       if (!response.ok) throw new Error("Failed to delete from server");
 
+      // Instantly remove it from the screen without refreshing the page!
       setPostings(prev => prev.filter(item => item.id !== postToDelete));
+
+      // Close the modal
       setShowDeleteModal(false);
       setPostToDelete(null);
 

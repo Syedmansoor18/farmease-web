@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation, Navigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { useLanguage } from "../context/LanguageContext"; // Make sure 'context' is lowercase!
+import { useLanguage } from "../context/LanguageContext";
 
 export default function EquipmentDetailPage() {
   const [activeImg, setActiveImg] = useState(0);
@@ -11,10 +11,29 @@ export default function EquipmentDetailPage() {
   const location = useLocation();
   const { t } = useLanguage();
 
-  const equipment = location.state?.equipment;
+  // 1. Extract the raw object passed from the previous page
+  const rawEquipment = location.state?.equipment;
+
+  // 2. Fallback: If someone refreshes the page directly, send them to marketplace
+  if (!rawEquipment) {
+    return <Navigate to="/marketplace" />;
+  }
+
+  // 🚨 3. THE UNIVERSAL TRANSLATOR
+  // Automatically fixes missing or mismatched variables depending on where the user came from
+  const equipment = {
+    ...rawEquipment,
+    name: rawEquipment.name || rawEquipment.equipmentName || "Unknown Equipment",
+    price_per_day: rawEquipment.price_per_day || rawEquipment.totalAmount || rawEquipment.price || 0,
+    image_url: rawEquipment.image_url || rawEquipment.imageUrl || rawEquipment.image || null,
+    type: rawEquipment.type || rawEquipment.category || "General",
+    description: rawEquipment.description || "Equipment details from previous booking.",
+  };
+
+  // 🚨 Check where the user came from
   const origin = location.state?.from || "marketplace";
 
-  // 🚨 DYNAMIC FIX 1: Check if this item is already saved when the page loads
+  // DYNAMIC FIX 1: Check if this item is already saved when the page loads
   useEffect(() => {
     if (equipment) {
       const savedItems = JSON.parse(localStorage.getItem("savedEquipment") || "[]");
@@ -24,11 +43,7 @@ export default function EquipmentDetailPage() {
     }
   }, [equipment]);
 
-  if (!equipment) {
-    return <Navigate to="/marketplace" />;
-  }
-
-  // 🚨 DYNAMIC FIX 2: Toggle Save/Unsave in localStorage
+  // DYNAMIC FIX 2: Toggle Save/Unsave in localStorage
   const toggleSave = () => {
     const savedItems = JSON.parse(localStorage.getItem("savedEquipment") || "[]");
 
@@ -47,13 +62,26 @@ export default function EquipmentDetailPage() {
     }
   };
 
+  // 4. Unpack the description data safely (Using our regex trick!)
   const descMatch = equipment.description?.match(/Brand: (.*?)\| Model: (.*?)\n\n([\s\S]*?)\n\nListing Intent: (.*)/);
-  const brand = descMatch ? descMatch[1].trim() : "Unknown";
-  const modelYear = descMatch ? descMatch[2].trim() : "Unknown";
+  const brand = descMatch ? descMatch[1].trim() : "FarmEase";
+  const modelYear = descMatch ? descMatch[2].trim() : "Standard";
   const rawDesc = descMatch ? descMatch[3].trim() : equipment.description;
   const listingIntent = descMatch ? descMatch[4].trim() : "Rent";
   const isSelling = listingIntent.toLowerCase() === "sell";
 
+  // 🚨 DYNAMIC BREADCRUMB MAP
+  const breadcrumbMap = {
+    "marketplace": { label: t("marketplace") || "Marketplace", path: "/marketplace" },
+    "my-bookings": { label: t("myBookings") || "My Bookings", path: "/my-bookings" },
+    "profile": { label: t("profile") || "Profile", path: "/profile" },
+    "search": { label: t("search") || "Search", path: "/search" }
+  };
+
+  // Grab the correct setup, defaulting to marketplace if something goes wrong
+  const currentBreadcrumb = breadcrumbMap[origin] || breadcrumbMap["marketplace"];
+
+  // 5. Handle Images safely
   const images = equipment.image_url || equipment.image
     ? [equipment.image_url || equipment.image]
     : ["https://images.unsplash.com/photo-1592982537447-6f23b361bbcc?w=400&q=80"];
@@ -74,16 +102,15 @@ export default function EquipmentDetailPage() {
 
       <main className="flex-1 ml-0 md:ml-20 p-4 md:p-6 overflow-y-auto">
 
-        {/* Breadcrumb */}
-        <nav className="text-sm text-gray-500 mb-4 flex items-center gap-1 flex-wrap">
+        {/* Dynamic Breadcrumb */}
+        <nav className="text-xs text-gray-500 mb-4 flex items-center gap-1">
           <span
-            className="text-gray-700 cursor-pointer hover:underline capitalize"
-            onClick={() => navigate(-1)}
+            className="cursor-pointer hover:text-gray-700 transition-colors capitalize"
+            onClick={() => navigate(currentBreadcrumb.path)}
           >
-            {origin === "search" ? t("search") || "Search" : t("marketplace")}
+            {currentBreadcrumb.label}
           </span>
-          <span className="text-gray-400">&gt;</span>
-          <span className="text-blue-500 capitalize">{equipment.name}</span>
+          <span className="text-blue-700">&gt; {equipment.name}</span>
         </nav>
 
         {/* Main Body */}
@@ -135,7 +162,6 @@ export default function EquipmentDetailPage() {
               <h1 className="text-xl md:text-2xl font-bold leading-tight capitalize">
                 {equipment.name}
               </h1>
-              {/* 🚨 DYNAMIC FIX 3: Attach the toggleSave function */}
               <button onClick={toggleSave} className="p-1 mt-1 cursor-pointer bg-transparent border-none shrink-0">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill={wishlist ? "#e53e3e" : "none"} stroke={wishlist ? "#e53e3e" : "#aaa"} strokeWidth="2">
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />

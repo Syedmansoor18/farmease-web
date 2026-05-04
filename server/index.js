@@ -62,6 +62,7 @@ app.get('/api/search', async (req, res) => {
     }
 
     const { data, error } = await dbQuery;
+
     if (error) throw error;
 
     res.json(data);
@@ -117,7 +118,7 @@ app.get('/api/marketplace', async (req, res) => {
 
     // 🚨 NEW: Format the raw database rows to perfectly match the React UI
     const formattedData = data.map(item => ({
-      ...item,
+      ...item, 
       image: item.image_url, // Maps DB image_url to UI image
       price: `₹ ${item.price_per_day} / day`, // Formats the price nicely
       location: item.location || item.district, // Grabs the best location
@@ -128,7 +129,14 @@ app.get('/api/marketplace', async (req, res) => {
     const marketplaceData = {
       tractors: formattedData.filter(item => item.type.toLowerCase().includes('tractor')),
       harvesting: formattedData.filter(item => item.type.toLowerCase().includes('harvester')),
-      irrigation: formattedData.filter(item => item.type.toLowerCase().includes('pump') || item.type.toLowerCase().includes('irrigation'))
+      irrigation: formattedData.filter(item => item.type.toLowerCase().includes('pump') || item.type.toLowerCase().includes('irrigation')),
+      others: formattedData.filter(item => {
+        const type = item.type.toLowerCase();
+        return !type.includes('tractor') && 
+               !type.includes('harvester') && 
+               !type.includes('pump') && 
+               !type.includes('irrigation');
+      })
     };
 
     res.json(marketplaceData);
@@ -172,7 +180,7 @@ app.post('/api/equipment', async (req, res) => {
     }
 
     if (dbResponse.error) throw dbResponse.error;
-
+    
     res.status(201).json({ data: dbResponse.data });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -190,7 +198,7 @@ app.delete('/api/equipment/:id', async (req, res) => {
       .eq('id', id);
 
     if (error) throw error;
-
+    
     res.status(200).json({ message: "Equipment deleted successfully" });
   } catch (err) {
     console.error("Delete Error:", err);
@@ -203,11 +211,11 @@ app.delete('/api/equipment/:id', async (req, res) => {
 app.post('/api/bookings', async (req, res) => {
   try {
     const b = req.body;
-
+    
     // 🚨 STEP 1: Look up the real Farmer ID using profile_id
     const { data: farmerData, error: farmerError } = await supabase
       .from('farmers')
-      .select('id')
+      .select('id') 
       .eq('profile_id', b.userId) // Looking at the correct column!
       .single();
 
@@ -234,13 +242,13 @@ app.post('/api/bookings', async (req, res) => {
 
     // STEP 4: Save using the REAL Farmer ID
     const dbPayload = {
-      farmer_id: realFarmerId,
+      farmer_id: realFarmerId, 
       equipment_id: b.equipmentId,
       total_price: b.totalAmount,
       start_date: startDate.toISOString(),
       end_date: endDate.toISOString(),
       status: b.status,
-      notes: extraNotes
+      notes: extraNotes 
     };
 
     const { data, error } = await supabase
@@ -284,7 +292,7 @@ app.get('/api/bookings', async (req, res) => {
     // 🚨 3. THE MAGIC: Fetch the actual Equipment Data for these bookings!
     const equipmentIds = bookingsData.map(b => b.equipment_id);
     const { data: equipmentData } = await supabase
-      .from('equipment')
+      .from('equipment_list')
       .select('*')
       .in('id', equipmentIds);
 
@@ -319,7 +327,7 @@ app.get('/api/bookings', async (req, res) => {
         isSelling: parsedNotes.isSelling,
 
         // 🚨 STAPLE THE REAL EQUIPMENT MANUAL TO THE BOOKING!
-        fullEquipment: realEquipment
+        fullEquipment: realEquipment 
       };
     });
 
