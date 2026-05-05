@@ -24,7 +24,7 @@ import PaymentPage from "./pages/PaymentPage";
 import ListEquipment from "./pages/ListEquipment";
 import PostSuccess from "./pages/PostSuccess";
 import Profile from "./pages/Profile";
-import Notifications from "./pages/Notifications"; // 🚨 FIXED TYPO HERE
+import Notifications from "./pages/Notifications";
 import BookingSuccess from "./pages/BookingSuccess";
 import LanguagePage from "./pages/LanguagePage";
 import SavedEquipment from "./pages/SavedEquipment";
@@ -69,10 +69,10 @@ export default function App() {
           <Route path="/saved-equipment" element={<SavedEquipment />} />
           <Route path="/my-bookings" element={<MyBookings />} />
           <Route path="/my-postings" element={<MyPostings />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/edit-profile" element={<EditProfile />} /> {/* 🚨 ADD THIS LINE */}
+          <Route path="/edit-profile" element={<EditProfile />} />
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+
         </Routes>
       </BrowserRouter>
     </LanguageProvider>

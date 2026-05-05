@@ -197,7 +197,8 @@ export default function PaymentPage() {
     <div className="flex bg-gray-50 min-h-screen">
       <Sidebar />
 
-      <main className="flex-1 ml-0 md:ml-20 px-4 md:px-12 py-5 font-sans text-gray-800 overflow-y-auto">
+      {/* 🚨 FIXED: Changed py-5 to pt-5 and added pb-24 for mobile scrolling clearance */}
+      <main className="flex-1 ml-0 md:ml-20 px-4 md:px-12 pt-5 pb-28 md:pb-10 font-sans text-gray-800 overflow-y-auto">
 
         {/* Breadcrumb */}
         <nav className="text-sm text-gray-500 mb-4 flex flex-wrap items-center gap-1">
@@ -370,9 +371,10 @@ export default function PaymentPage() {
               </label>
             </div>
 
+            {/* Added mb-8 here as an extra safety measure */}
             <button
               onClick={handlePayment}
-              className="w-full bg-green-700 hover:bg-green-800 text-white font-semibold py-4 rounded-xl text-base transition-colors duration-200 cursor-pointer flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+              className="w-full bg-green-700 hover:bg-green-800 text-white font-semibold py-4 rounded-xl text-base transition-colors duration-200 cursor-pointer flex items-center justify-center gap-2 shadow-lg hover:shadow-xl mb-8 md:mb-0"
             >
              Pay Securely — ₹{totalAmount.toLocaleString()}
             </button>

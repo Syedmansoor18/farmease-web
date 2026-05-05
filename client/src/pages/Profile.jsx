@@ -47,33 +47,37 @@ const StatsBar = ({ t, listingsCount, rating, savedCount, aadhaarVerified, kisan
   </div>
 );
 
+// 🚨 FIXED LAYOUT:
+// On mobile (default): flex, horizontal scroll, snap-x.
+// On desktop (md:): grid, 5 columns! No weird stretching or massive spaces.
 const ScrollSection = ({ title, children, onClick }) => (
-  <div>
-    <div className="flex justify-between items-center mb-2">
-      <h3 className="text-sm font-bold text-gray-800">{title}</h3>
-      <svg onClick={onClick} viewBox="0 0 24 24" className="w-7 h-7 fill-current text-gray-300 hover:text-green-600 transition-colors duration-200 cursor-pointer">
+  <div className="mb-2 w-full">
+    <div className="flex justify-between items-center mb-3">
+      <h3 className="text-base font-bold text-gray-800">{title}</h3>
+      <svg onClick={onClick} viewBox="0 0 24 24" className="w-6 h-6 fill-current text-gray-300 hover:text-green-600 transition-colors duration-200 cursor-pointer">
         <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
       </svg>
     </div>
-    <div className="flex gap-3 pb-1">
+    <div className="flex md:grid md:grid-cols-5 gap-3 sm:gap-4 pb-3 overflow-x-auto md:overflow-visible no-scrollbar snap-x snap-mandatory -mx-4 px-4 md:mx-0 md:px-0">
       {children}
     </div>
   </div>
 );
 
+// 🚨 FIXED CARDS: w-[220px] on mobile to maintain swipe shape, w-full on desktop to fill grid slots perfectly!
 const BookingCard = ({ item, onClick }) => (
-  <div onClick={onClick} className="flex-1 min-w-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm cursor-pointer hover:shadow-md transition">
-    <div className="w-full aspect-video">
+  <div onClick={onClick} className="w-[180px] sm:w-[220px] md:w-full flex-shrink-0 snap-start bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm cursor-pointer hover:shadow-md transition flex flex-col">
+    <div className="w-full h-28 sm:h-32">
       <img src={item.imageUrl || item.img || "https://images.unsplash.com/photo-1592982537447-6f23b361bbcc?w=400"} alt={item.equipmentName || item.name} className="w-full h-full object-cover"/>
     </div>
-    <div className="p-2">
-      <div className="flex items-start justify-between gap-1">
+    <div className="p-3 flex flex-col flex-1">
+      <div className="flex items-start justify-between gap-1 mb-1">
         <p className="text-sm font-semibold text-gray-800 truncate capitalize">{item.equipmentName || item.name}</p>
-        <span className={`flex-shrink-0 text-[10px] font-bold text-white px-2 py-0.5 rounded ${item.status === 'rented' ? 'bg-orange-600' : 'bg-green-500'}`}>
-          {item.status ? item.status.toUpperCase() : "ACTIVE"}
-        </span>
       </div>
-      <p className="text-sm text-green-700 font-medium mt-0.5">₹{item.totalAmount || item.price}</p>
+      <span className={`w-fit text-[10px] font-bold text-white px-2 py-0.5 rounded ${item.status === 'rented' ? 'bg-orange-600' : 'bg-green-500'}`}>
+        {item.status ? item.status.toUpperCase() : "ACTIVE"}
+      </span>
+      <p className="text-sm text-green-700 font-bold mt-auto pt-2">₹{item.totalAmount || item.price}</p>
     </div>
   </div>
 );
@@ -84,43 +88,43 @@ const SavedCard = ({ item, onRemove }) => {
   const image = item.image_url || item.image || "https://images.unsplash.com/photo-1592982537447-6f23b361bbcc?w=400&q=80";
 
   return (
-    <div className="flex-1 min-w-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm relative">
-      <div className="w-full aspect-video relative">
+    <div className="w-[180px] sm:w-[220px] md:w-full flex-shrink-0 snap-start bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm relative flex flex-col">
+      <div className="w-full h-28 sm:h-32 relative">
         <img src={image} alt={item.name} className="w-full h-full object-cover"/>
-        <button onClick={e => { e.stopPropagation(); onRemove(item); }} className="absolute top-1 right-1 bg-white rounded-full p-1 shadow cursor-pointer border-none z-10 hover:bg-red-50">
-          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-red-400">
+        <button onClick={e => { e.stopPropagation(); onRemove(item); }} className="absolute top-2 right-2 bg-white rounded-full p-1.5 shadow-md cursor-pointer border-none z-10 hover:bg-red-50 transition-colors">
+          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-red-500">
             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
           </svg>
         </button>
       </div>
-      <div className="p-2">
+      <div className="p-3 flex flex-col flex-1">
         <p className="text-sm font-semibold text-gray-800 truncate capitalize">{item.name}</p>
-        <p className="text-xs text-green-700 font-bold mt-1">{priceText}</p>
+        <p className="text-sm text-green-700 font-bold mt-auto pt-2">{priceText}</p>
       </div>
     </div>
   );
 };
 
 const PostingCard = ({ item }) => (
-  <div className="flex-1 min-w-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm cursor-pointer hover:shadow-md transition">
-    <div className="w-full aspect-video">
+  <div className="w-[180px] sm:w-[220px] md:w-full flex-shrink-0 snap-start bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm cursor-pointer hover:shadow-md transition flex flex-col">
+    <div className="w-full h-28 sm:h-32">
       <img src={item.img || "https://images.unsplash.com/photo-1592982537447-6f23b361bbcc?w=400"} alt={item.name} className="w-full h-full object-cover"/>
     </div>
-    <div className="p-2">
+    <div className="p-3 flex flex-col flex-1">
       <p className="text-sm font-semibold text-gray-800 truncate capitalize">{item.name}</p>
-      <p className="text-xs text-gray-400 font-medium truncate">{item.sub}</p>
+      <p className="text-xs text-gray-500 font-medium truncate mt-auto pt-1">{item.sub}</p>
     </div>
   </div>
 );
 
 const SettingsGroup = ({ title, items }) => (
-  <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+  <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden mb-6">
     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-4 pt-3 pb-1">{title}</p>
     {items.map((item, idx) => (
-      <button key={item.id} onClick={item.onClick} className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors cursor-pointer ${idx < items.length - 1 ? "border-b border-gray-50" : ""}`}>
+      <button key={item.id} onClick={item.onClick} className={`w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-gray-50 transition-colors cursor-pointer ${idx < items.length - 1 ? "border-b border-gray-50" : ""}`}>
         {item.icon}
-        <span className="text-xs text-gray-700">{item.label}</span>
-        <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current text-gray-300 ml-auto">
+        <span className="text-sm text-gray-700">{item.label}</span>
+        <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current text-gray-300 ml-auto">
           <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
         </svg>
       </button>
@@ -149,28 +153,22 @@ export default function Profile() {
       try {
         localStorage.removeItem("myPostings"); // Clean old ghosts
 
-        const savedProfile = JSON.parse(localStorage.getItem("userProfile"));
+        const savedProfile = JSON.parse(localStorage.getItem("userProfile")) || {};
         const { data: { user } } = await supabase.auth.getUser();
 
-        if (savedProfile) {
-          setProfileData({
-            name: savedProfile.fullName || "Verified Farmer",
-            kisanId: savedProfile.kisanId ? `ID: ${savedProfile.kisanId}` : "ID: PENDING",
-            rating: "5.0",
-            aadhaarVerified: savedProfile.aadhaarVerified,
-            kisanVerified: savedProfile.kisanVerified,
-          });
-        } else if (user) {
-          setProfileData({
-            name: user.user_metadata?.full_name || "Verified Farmer",
-            kisanId: "ID: " + user.id.substring(0, 8).toUpperCase(),
-            rating: "5.0",
-            aadhaarVerified: false,
-            kisanVerified: false,
-          });
-        }
-
         if (user) {
+          const supabaseName = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.first_name;
+          const localName = savedProfile.fullName || savedProfile.name;
+          const actualName = supabaseName || localName || "Verified Farmer";
+
+          setProfileData({
+            name: actualName,
+            kisanId: savedProfile.kisanId ? `ID: ${savedProfile.kisanId}` : `ID: ${user.id.substring(0, 8).toUpperCase()}`,
+            rating: "5.0",
+            aadhaarVerified: savedProfile.aadhaarVerified || false,
+            kisanVerified: savedProfile.kisanVerified || false,
+          });
+
           // 1. Fetch Bookings
           const bookingsRes = await fetch(`http://localhost:5000/api/bookings?user_id=${user.id}`);
           if (bookingsRes.ok) {
@@ -191,11 +189,11 @@ export default function Profile() {
             setMyPostings(formattedPostings.slice(0, 5));
           }
 
-          // 🚨 3. NEW: Fetch Real Saved Equipment from Database!
+          // 3. Fetch Real Saved Equipment from Database!
           const savedRes = await fetch(`http://localhost:5000/api/saved?user_id=${user.id}`);
           if (savedRes.ok) {
             const sData = await savedRes.json();
-            setSavedEquipment(sData.slice(0, 5)); 
+            setSavedEquipment(sData.slice(0, 5));
           }
         }
       } catch (error) {
@@ -206,18 +204,14 @@ export default function Profile() {
     fetchData();
   }, []);
 
-  // 🚨 NEW: The Database Delete Handler
   const handleRemoveSaved = async (itemToRemove) => {
-    // Optimistic UI Update: Remove it from the screen immediately
     const updatedItems = savedEquipment.filter(item => item.id !== itemToRemove.id);
     setSavedEquipment(updatedItems);
 
     try {
-      // Find out who is logged in
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Tell the backend to delete it from the saved_equipment table
       const response = await fetch("http://localhost:5000/api/saved/toggle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -231,35 +225,34 @@ export default function Profile() {
 
     } catch (error) {
       console.error("Database deletion failed:", error);
-      // If it fails, put the item back on the screen
       setSavedEquipment(savedEquipment);
     }
   };
 
   const accountSettings = [
-    { id: 1, label: t("changePassword"), onClick: () => navigate("/change-password"), icon: (<svg viewBox="0 0 24 24" className="w-4 h-4 fill-current text-gray-500"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>) },
-    { id: 2, label: t("languageSettings"), onClick: () => navigate("/language"), icon: (<svg viewBox="0 0 24 24" className="w-4 h-4 fill-current text-gray-500"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm6.93 6h-2.95c-.32-1.25-.78-2.45-1.38-3.56 1.84.63 3.37 1.91 4.33 3.56zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56-1.84-.63-3.37-1.9-4.33-3.56zm2.95-8H5.08c.96-1.66 2.49-2.93 4.33-3.56C8.81 5.55 8.35 6.75 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2s.07-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95c-.96 1.65-2.49 2.93-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z"/></svg>) },
-    { id: 3, label: t("notifications"), onClick: () => navigate("/notifications"), icon: (<svg viewBox="0 0 24 24" className="w-4 h-4 fill-current text-gray-500"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>) },
+    { id: 1, label: t("changePassword"), onClick: () => navigate("/change-password"), icon: (<svg viewBox="0 0 24 24" className="w-5 h-5 fill-current text-gray-500"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>) },
+    { id: 2, label: t("languageSettings"), onClick: () => navigate("/language"), icon: (<svg viewBox="0 0 24 24" className="w-5 h-5 fill-current text-gray-500"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm6.93 6h-2.95c-.32-1.25-.78-2.45-1.38-3.56 1.84.63 3.37 1.91 4.33 3.56zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56-1.84-.63-3.37-1.9-4.33-3.56zm2.95-8H5.08c.96-1.66 2.49-2.93 4.33-3.56C8.81 5.55 8.35 6.75 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2s.07-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95c-.96 1.65-2.49 2.93-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z"/></svg>) },
+    { id: 3, label: t("notifications"), onClick: () => navigate("/notifications"), icon: (<svg viewBox="0 0 24 24" className="w-5 h-5 fill-current text-gray-500"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>) },
   ];
 
   const helpSupport = [
-    { id: 1, label: t("helpCenter"), onClick: () => {}, icon: (<svg viewBox="0 0 24 24" className="w-4 h-4 fill-current text-gray-500"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>) },
-    { id: 2, label: t("contactSupport"), onClick: () => {}, icon: (<svg viewBox="0 0 24 24" className="w-4 h-4 fill-current text-gray-500"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>) },
+    { id: 1, label: t("helpCenter"), onClick: () => {}, icon: (<svg viewBox="0 0 24 24" className="w-5 h-5 fill-current text-gray-500"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>) },
+    { id: 2, label: t("contactSupport"), onClick: () => {}, icon: (<svg viewBox="0 0 24 24" className="w-5 h-5 fill-current text-gray-500"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>) },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-100 flex w-full" style={{ maxWidth: "100vw", overflowX: "hidden" }}>
+    <div className="min-h-screen bg-gray-100 flex max-w-[100vw] overflow-hidden">
       <Sidebar />
-      <div className="flex-1 py-6 px-8 ml-0 md:ml-12 overflow-x-hidden">
+      <div className="flex-1 py-6 px-4 md:px-8 ml-0 md:ml-[76px] overflow-y-auto overflow-x-hidden w-full pb-28 md:pb-8">
 
-        <div className="bg-white border-b border-gray-100 rounded-t-xl overflow-hidden">
+        <div className="bg-white border-b border-gray-100 rounded-t-xl overflow-hidden shadow-sm">
           <div className="flex flex-col items-center pt-6 pb-3">
-            <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-green-400 mb-2">
+            <div className="w-20 h-20 md:w-16 md:h-16 rounded-full overflow-hidden border-2 border-green-400 mb-2 shadow-sm">
               <img src={`https://ui-avatars.com/api/?name=${profileData.name}&background=d1fae5&color=065f46&bold=true`} alt={profileData.name} className="w-full h-full object-cover" />
             </div>
-            <h2 className="text-sm font-bold text-gray-900 capitalize">{profileData.name}</h2>
-            <p className="text-[11px] text-gray-400 mb-2">{profileData.kisanId}</p>
-            <button onClick={() => navigate("/edit-profile")} className="border border-green-600 text-green-700 text-xs px-6 py-1 rounded-full hover:bg-green-50 transition-colors cursor-pointer">
+            <h2 className="text-base md:text-sm font-bold text-gray-900 capitalize">{profileData.name}</h2>
+            <p className="text-xs md:text-[11px] text-gray-400 mb-3">{profileData.kisanId}</p>
+            <button onClick={() => navigate("/edit-profile")} className="border border-green-600 text-green-700 text-xs px-6 py-1.5 rounded-full hover:bg-green-50 transition-colors cursor-pointer font-medium shadow-sm">
               {t("editProfile") || "Edit Profile"}
             </button>
           </div>
@@ -275,72 +268,64 @@ export default function Profile() {
         </div>
 
         {/* CONTENT */}
-        <div className="p-4 space-y-6">
+        <div className="p-4 space-y-8 w-full">
 
           {/* MY BOOKINGS SECTION */}
           <ScrollSection title={t("myBookings")} onClick={() => navigate("/my-bookings")}>
             {myBookings.length > 0 ? (
-              <>
-                {myBookings.map(item => (
-                  <BookingCard
-                    key={item._id || item.id}
-                    item={item}
-                    onClick={() => {
-                      const actualEquipmentData = item.fullEquipment && Object.keys(item.fullEquipment).length > 0
-                        ? item.fullEquipment
-                        : item;
-                      navigate("/equipment-detail", {
-                        state: { equipment: actualEquipmentData, from: "profile" }
-                      });
-                    }}
-                  />
-                ))}
-                {Array.from({ length: Math.max(0, 5 - myBookings.length) }).map((_, i) => (
-                  <div key={`booking-spacer-${i}`} className="flex-1 min-w-0 pointer-events-none opacity-0" />
-                ))}
-              </>
+              myBookings.map(item => (
+                <BookingCard
+                  key={item._id || item.id}
+                  item={item}
+                  onClick={() => {
+                    const actualEquipmentData = item.fullEquipment && Object.keys(item.fullEquipment).length > 0
+                      ? item.fullEquipment
+                      : item;
+                    navigate("/equipment-detail", {
+                      state: { equipment: actualEquipmentData, from: "profile" }
+                    });
+                  }}
+                />
+              ))
             ) : (
-              <p className="text-sm text-gray-400 py-4">No recent bookings found.</p>
+              <div className="w-full text-center text-sm text-gray-400 py-6 bg-white rounded-xl border border-dashed border-gray-200">
+                No recent bookings found.
+              </div>
             )}
           </ScrollSection>
 
           {/* SAVED EQUIPMENT SECTION */}
           <ScrollSection title={t("savedEquipment")} onClick={() => navigate("/saved-equipment")}>
             {savedEquipment.length > 0 ? (
-              <>
-                {savedEquipment.map((item, index) => (
-                  <SavedCard key={item.id || index} item={item} onRemove={handleRemoveSaved} />
-                ))}
-                {Array.from({ length: Math.max(0, 5 - savedEquipment.length) }).map((_, i) => (
-                  <div key={`saved-spacer-${i}`} className="flex-1 min-w-0 pointer-events-none opacity-0" />
-                ))}
-              </>
+              savedEquipment.map((item, index) => (
+                <SavedCard key={item.id || index} item={item} onRemove={handleRemoveSaved} />
+              ))
             ) : (
-              <p className="text-sm text-gray-400 italic py-4">No saved equipment yet.</p>
+              <div className="w-full text-center text-sm text-gray-400 italic py-6 bg-white rounded-xl border border-dashed border-gray-200">
+                No saved equipment yet.
+              </div>
             )}
           </ScrollSection>
 
           {/* MY POSTINGS SECTION */}
           <ScrollSection title={t("myPostings")} onClick={() => navigate("/my-postings")}>
             {myPostings.length > 0 ? (
-              <>
-                {myPostings.map(item => <PostingCard key={item.id} item={item} />)}
-                {Array.from({ length: Math.max(0, 5 - myPostings.length) }).map((_, i) => (
-                  <div key={`posting-spacer-${i}`} className="flex-1 min-w-0 pointer-events-none opacity-0" />
-                ))}
-              </>
+              myPostings.map(item => <PostingCard key={item.id} item={item} />)
             ) : (
-              <p className="text-sm text-gray-400 italic py-4">You have not posted any equipment yet.</p>
+              <div className="w-full text-center text-sm text-gray-400 italic py-6 bg-white rounded-xl border border-dashed border-gray-200">
+                You have not posted any equipment yet.
+              </div>
             )}
           </ScrollSection>
 
-          <SettingsGroup title={t("accountSettings")} items={accountSettings} />
-          <SettingsGroup title={t("helpAndSupport")} items={helpSupport} />
+          <div className="mt-8">
+            <SettingsGroup title={t("accountSettings")} items={accountSettings} />
+            <SettingsGroup title={t("helpAndSupport")} items={helpSupport} />
+          </div>
 
-          <button onClick={() => navigate("/")} className="w-full border border-green-600 text-green-700 font-medium rounded-xl py-3 text-sm hover:bg-green-600 hover:text-white transition-colors duration-200 cursor-pointer">
+          <button onClick={() => navigate("/")} className="w-full border-2 border-green-600 text-green-700 font-bold rounded-xl py-3.5 text-sm hover:bg-green-600 hover:text-white transition-colors duration-200 cursor-pointer shadow-sm">
             {t("logout")}
           </button>
-          <div className="h-4" />
         </div>
       </div>
     </div>

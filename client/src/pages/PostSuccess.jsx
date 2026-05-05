@@ -73,20 +73,22 @@ const Postingsuccessfulpage = () => {
   const locationText = locRaw ? `${locRaw}, ${equipment.state || ""}` : equipment.state || "Location not specified";
 
   return (
-    <div className="flex bg-gray-50 min-h-screen" style={{ maxWidth: "100vw", overflowX: "hidden" }}>
+    // 🚨 Cleaned up inline styles, replaced with max-w-[100vw] overflow-hidden
+    <div className="flex bg-gray-50 min-h-screen max-w-[100vw] overflow-hidden">
       <Sidebar />
 
-      <div className="flex-1 py-6 px-4 sm:px-8 ml-0 md:ml-12 overflow-x-hidden">
+      {/* 🚨 Added ml-0 md:ml-[76px] and pb-28 to fix mobile overlap issues */}
+      <div className="flex-1 pt-6 pb-28 md:pb-10 px-4 sm:px-8 ml-0 md:ml-[76px] overflow-x-hidden overflow-y-auto w-full">
 
         {/* Breadcrumb */}
         <div className="mb-4 flex items-center gap-1 text-sm flex-wrap">
-          <span onClick={() => navigate("/list-equipment")} className="text-gray-700 cursor-pointer hover:underline flex items-center gap-1">
+          <span onClick={() => navigate("/list-equipment")} className="text-gray-700 cursor-pointer hover:underline flex items-center gap-1 whitespace-nowrap">
             <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
               <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z" />
             </svg>
             {t("listEquipment") || "List Equipment"}
           </span>
-          <span className="text-blue-700 flex items-center gap-1">
+          <span className="text-blue-700 flex items-center gap-1 break-words">
             <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
               <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z" />
             </svg>
@@ -107,7 +109,7 @@ const Postingsuccessfulpage = () => {
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">
               {t("equipmentPostedSuccessfully") || "Equipment Posted Successfully!"}
             </h2>
-            <p className="text-sm sm:text-base text-gray-500 mt-2">
+            <p className="text-sm sm:text-base text-gray-500 mt-2 px-2">
               {t("equipmentNowLive") || "Your equipment is now live and visible to buyers/renters."}
             </p>
           </div>
@@ -121,47 +123,48 @@ const Postingsuccessfulpage = () => {
             <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col sm:flex-row">
 
               {/* Image */}
-              <div className="relative w-full sm:w-72 flex-shrink-0 bg-white h-52 sm:h-auto">
+              <div className="relative w-full sm:w-72 md:w-80 flex-shrink-0 bg-white h-56 sm:h-auto">
                 <img src={image} alt={name} className="w-full h-full object-cover" />
-                <span className="absolute top-3 left-3 bg-green-700 text-white text-sm font-bold px-3 py-1 rounded uppercase tracking-wider">
+                <span className="absolute top-3 left-3 bg-green-700 text-white text-sm font-bold px-3 py-1.5 rounded-md uppercase tracking-wider shadow-sm">
                   {intent}
                 </span>
-                <div className="absolute bottom-3 left-3 bg-white/90 text-gray-700 text-sm px-3 py-1 rounded-full flex items-center gap-1.5 capitalize">
+                <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm text-gray-700 text-sm px-3 py-1.5 rounded-full flex items-center gap-1.5 capitalize shadow-sm">
                   <span className="w-2 h-2 bg-green-500 rounded-full inline-block" />
                   {t("availableNow") || "Available"}
                 </div>
               </div>
 
               {/* Details */}
-              <div className="flex-1 px-4 sm:px-8 py-5 sm:py-6">
-                <h4 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2 capitalize">
+              <div className="flex-1 px-4 sm:px-8 py-5 sm:py-6 min-w-0">
+                {/* 🚨 Added break-words to handle long names */}
+                <h4 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2 capitalize break-words">
                   {name}
                 </h4>
 
-                <p className="text-sm text-gray-500 mb-4 flex items-center gap-1.5 capitalize">
+                <p className="text-sm text-gray-500 mb-4 flex items-center gap-1.5 capitalize truncate">
                   <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current text-gray-400 flex-shrink-0">
                     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
                   </svg>
-                  {locationText}
+                  <span className="truncate">{locationText}</span>
                 </p>
 
                 {/* Specs Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-5">
                   <div>
                     <p className="text-xs sm:text-sm text-gray-400 uppercase tracking-wide mb-1">{t("category") || "Category"}</p>
-                    <p className="text-sm sm:text-base font-semibold text-gray-700 capitalize">{category}</p>
+                    <p className="text-sm sm:text-base font-semibold text-gray-700 capitalize truncate">{category}</p>
                   </div>
                   <div>
                     <p className="text-xs sm:text-sm text-gray-400 uppercase tracking-wide mb-1">{t("brand") || "Brand"}</p>
-                    <p className="text-sm sm:text-base font-semibold text-gray-700 capitalize">{brand}</p>
+                    <p className="text-sm sm:text-base font-semibold text-gray-700 capitalize truncate">{brand}</p>
                   </div>
                   <div>
                     <p className="text-xs sm:text-sm text-gray-400 uppercase tracking-wide mb-1">{t("modelYear") || "Model/Year"}</p>
-                    <p className="text-sm sm:text-base font-semibold text-gray-700">{modelYear}</p>
+                    <p className="text-sm sm:text-base font-semibold text-gray-700 truncate">{modelYear}</p>
                   </div>
                   <div>
                     <p className="text-xs sm:text-sm text-gray-400 uppercase tracking-wide mb-1">{t("condition") || "Condition"}</p>
-                    <p className="text-sm sm:text-base font-semibold text-gray-700 capitalize">{condition}</p>
+                    <p className="text-sm sm:text-base font-semibold text-gray-700 capitalize truncate">{condition}</p>
                   </div>
                 </div>
 
@@ -176,7 +179,7 @@ const Postingsuccessfulpage = () => {
                 </div>
 
                 {/* Description */}
-                <p className="text-sm text-gray-500 italic leading-relaxed">
+                <p className="text-sm text-gray-500 italic leading-relaxed line-clamp-4 sm:line-clamp-none">
                   {description}
                 </p>
               </div>
@@ -184,26 +187,26 @@ const Postingsuccessfulpage = () => {
           </div>
 
           {/* What's Next */}
-          <div className="mx-4 sm:mx-8 mb-6 bg-gray-50 rounded-xl px-4 sm:px-6 py-4">
+          <div className="mx-4 sm:mx-8 mb-6 bg-gray-50 rounded-xl px-4 sm:px-6 py-4 border border-gray-100">
             <p className="text-base font-semibold text-gray-700 mb-1">{t("whatsNext") || "What's Next?"}</p>
             <p className="text-sm text-gray-500">{t("whatsNextDetail") || "Keep an eye on your messages. Potential buyers and renters will contact you soon."}</p>
           </div>
 
           {/* Buttons */}
           <div className="px-4 sm:px-8 pb-8">
-            <button onClick={() => navigate("/my-postings")} className="w-full bg-green-700 hover:bg-green-800 text-white font-semibold rounded-xl py-4 text-base transition-colors mb-3 cursor-pointer">
+            <button onClick={() => navigate("/my-postings")} className="w-full bg-green-700 hover:bg-green-800 text-white font-semibold rounded-xl py-4 text-base transition-colors mb-3 cursor-pointer shadow-sm">
               {t("viewMyPostings") || "View My Postings"}
             </button>
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
 
               <button
                 onClick={() => navigate("/list-equipment", { state: equipment })}
-                className="flex-1 border border-gray-300 text-gray-700 font-medium rounded-xl py-3.5 text-base hover:bg-gray-50 cursor-pointer"
+                className="flex-1 border-2 border-gray-200 text-gray-700 font-medium rounded-xl py-3.5 text-sm sm:text-base hover:bg-gray-50 hover:border-gray-300 transition-colors cursor-pointer"
               >
                 {t("editListing") || "Edit Listing"}
               </button>
 
-              <button onClick={() => navigate("/list-equipment")} className="flex-1 border border-gray-300 text-gray-700 font-medium rounded-xl py-3.5 text-base hover:bg-gray-50 cursor-pointer">
+              <button onClick={() => navigate("/list-equipment")} className="flex-1 border-2 border-gray-200 text-gray-700 font-medium rounded-xl py-3.5 text-sm sm:text-base hover:bg-gray-50 hover:border-gray-300 transition-colors cursor-pointer">
                 {t("postAnother") || "Post Another"}
               </button>
 

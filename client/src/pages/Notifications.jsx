@@ -39,13 +39,13 @@ export default function Notifications() {
       }
       setIsLoading(false);
 
-      // 2. Subscribe to Live Changes (Real-Time Magic!)
+      // 2. Subscribe to Live Changes
       subscription = supabase
         .channel("realtime-notifications")
         .on(
           "postgres_changes",
           {
-            event: "*", // Listen for INSERT, UPDATE, and DELETE
+            event: "*",
             schema: "public",
             table: "notifications",
             filter: `user_id=eq.${user.id}`,
@@ -69,30 +69,81 @@ export default function Notifications() {
 
     fetchNotifications();
 
-    // Cleanup subscription when leaving the page
     return () => {
       if (subscription) supabase.removeChannel(subscription);
     };
   }, []);
 
-  // 🚨 UPDATE DATABASE WHEN NOTIFICATION IS CLICKED
+  // 🚨 ESCROW ACTION: ACCEPT BOOKING
+  const handleAccept = async (e, notification) => {
+    e.stopPropagation(); // Prevent the notification click event from firing
+    if (!notification.booking_id) return alert("Booking ID missing!");
+
+    try {
+      // 1. Update the actual Booking to 'accepted'
+      const { error: bookingError } = await supabase
+        .from('bookings')
+        .update({ status: 'accepted' })
+        .eq('id', notification.booking_id);
+
+      if (bookingError) throw bookingError;
+
+      // 2. Update the Notification so it no longer shows the buttons
+      await supabase
+        .from('notifications')
+        .update({
+          type: 'success',
+          message: 'You have accepted this rental request. The escrow is locked.',
+          is_read: true
+        })
+        .eq('id', notification.id);
+
+      alert("✅ Request Accepted! Escrow locked.");
+    } catch (error) {
+      alert("Error accepting booking: " + error.message);
+    }
+  };
+
+  // 🚨 ESCROW ACTION: REJECT BOOKING
+  const handleReject = async (e, notification) => {
+    e.stopPropagation();
+    if (!notification.booking_id) return alert("Booking ID missing!");
+
+    try {
+      // 1. Update the actual Booking to 'rejected'
+      const { error: bookingError } = await supabase
+        .from('bookings')
+        .update({ status: 'rejected' })
+        .eq('id', notification.booking_id);
+
+      if (bookingError) throw bookingError;
+
+      // 2. Update the Notification
+      await supabase
+        .from('notifications')
+        .update({
+          type: 'error',
+          message: 'You rejected this rental request. The deposit hold will be released.',
+          is_read: true
+        })
+        .eq('id', notification.id);
+
+      alert("❌ Request Rejected.");
+    } catch (error) {
+      alert("Error rejecting booking: " + error.message);
+    }
+  };
+
   const markAsRead = async (id) => {
-    // Instantly update UI
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
     );
-
-    // Update Supabase in background
     await supabase.from("notifications").update({ is_read: true }).eq("id", id);
   };
 
   const markAllAsRead = async () => {
     if (!userId) return;
-
-    // Instantly update UI
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-
-    // Update all unread in Supabase
     await supabase
       .from("notifications")
       .update({ is_read: true })
@@ -140,27 +191,27 @@ export default function Notifications() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex w-full" style={{ maxWidth: "100vw", overflowX: "hidden" }}>
+    <div className="min-h-screen bg-gray-100 flex max-w-[100vw] overflow-hidden">
       <Sidebar />
 
-      <div className="flex-1 py-6 px-4 sm:px-8" style={{ marginLeft: "76px" }}>
+      <div className="flex-1 py-6 px-4 sm:px-8 ml-0 md:ml-[76px] pb-28 md:pb-8 overflow-y-auto w-full">
 
-        <div className="mb-6">
+        <div className="mb-6 mt-2 md:mt-0">
           <h1 className="text-2xl font-bold text-green-900 mb-2">
             {t("notifications")}
           </h1>
-          <p className="text-gray-600 border-l-4 border-green-500 pl-3">
+          <p className="text-sm sm:text-base text-gray-600 border-l-4 border-green-500 pl-3">
             {t("notificationsSubtitle") || "Stay updated with your bookings and requests."}
           </p>
         </div>
 
-        <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
-          <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap justify-between items-start sm:items-center gap-4 mb-6">
+          <div className="flex gap-2 flex-wrap w-full sm:w-auto">
             {["all", "unread", "read"].map((type) => (
               <button
                 key={type}
                 onClick={() => setFilter(type)}
-                className={`px-4 py-1.5 rounded-full text-sm border transition cursor-pointer ${
+                className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 rounded-full text-sm border transition cursor-pointer text-center ${
                   filter === type
                     ? "bg-green-900 text-white border-green-900"
                     : "bg-white border-gray-300 hover:bg-gray-50"
@@ -176,7 +227,7 @@ export default function Notifications() {
           {unreadCount > 0 && (
             <button
               onClick={markAllAsRead}
-              className="px-4 py-1.5 rounded-full text-sm bg-gray-100 border border-gray-300 hover:bg-gray-200 cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2 sm:py-1.5 rounded-full text-sm bg-gray-100 border border-gray-300 hover:bg-gray-200 cursor-pointer text-center"
             >
               {t("markAllAsRead") || "Mark all as read"}
             </button>
@@ -187,7 +238,7 @@ export default function Notifications() {
           {isLoading ? (
              <div className="text-center py-12 text-green-700 font-bold">Loading notifications...</div>
           ) : filteredNotifications.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
+            <div className="text-center py-12 text-gray-400 text-sm sm:text-base">
               {t("noNotifications") || "No notifications to show."}
             </div>
           ) : (
@@ -195,28 +246,48 @@ export default function Notifications() {
               <div
                 key={notif.id}
                 onClick={() => handleNotificationClick(notif)}
-                className={`flex gap-4 p-4 rounded-xl shadow-sm border-l-4 cursor-pointer transition hover:-translate-y-1 hover:shadow-md
+                className={`flex flex-col gap-3 p-3 sm:p-4 rounded-xl shadow-sm border-l-4 cursor-pointer transition hover:-translate-y-1 hover:shadow-md
                   ${getBorderColor(notif.type)}
                   ${notif.is_read ? "opacity-70 bg-white" : "bg-yellow-50"}`}
               >
-                <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-gray-100 text-xl">
-                  {getIcon(notif.type)}
+                <div className="flex gap-3 sm:gap-4">
+                  <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-gray-100 text-xl">
+                    {getIcon(notif.type)}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-green-900 text-sm sm:text-base break-words">
+                      {notif.title}
+                    </div>
+                    <div className="text-xs sm:text-sm text-gray-700 break-words mt-0.5">
+                      {notif.message}
+                    </div>
+                    <div className="text-[10px] sm:text-xs text-gray-400 mt-1.5">
+                      {formatTime(notif.created_at)}
+                    </div>
+                  </div>
+
+                  {!notif.is_read && (
+                    <div className="w-2.5 h-2.5 flex-shrink-0 bg-green-500 rounded-full mt-2" />
+                  )}
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-green-900">
-                    {notif.title}
+                {/* 🚨 INTERACTIVE BUTTONS FOR REQUESTS */}
+                {notif.type === "request" && (
+                  <div className="flex flex-row gap-2 mt-2 ml-13 sm:ml-14">
+                    <button
+                      onClick={(e) => handleAccept(e, notif)}
+                      className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors shadow-sm"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={(e) => handleReject(e, notif)}
+                      className="flex-1 bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-bold border border-red-100 hover:bg-red-100 transition-colors"
+                    >
+                      Reject
+                    </button>
                   </div>
-                  <div className="text-sm text-gray-700">
-                    {notif.message}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    {formatTime(notif.created_at)}
-                  </div>
-                </div>
-
-                {!notif.is_read && (
-                  <div className="w-2.5 h-2.5 flex-shrink-0 bg-green-500 rounded-full mt-2" />
                 )}
               </div>
             ))

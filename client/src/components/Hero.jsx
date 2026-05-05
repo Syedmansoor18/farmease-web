@@ -21,17 +21,22 @@ const Hero = () => {
       {/* Added stronger white gradient on mobile for text legibility */}
       <div className="absolute inset-0 z-0 bg-gradient-to-r from-white/80 md:from-white/30 via-white/50 md:via-transparent to-transparent"></div>
 
-      {/* 2. Top Navbar - FIXED FOR MOBILE */}
-      <header className="relative z-10 w-full flex flex-col md:flex-row items-center justify-between px-5 md:px-16 pt-8 pb-6 gap-5">
+      {/* 2. Top Navbar - 🚨 FIXED: Changed to Grid to perfectly center the title */}
+      <header className="relative z-10 w-full grid grid-cols-1 md:grid-cols-3 items-center px-5 md:px-16 pt-8 pb-6 gap-5">
 
+        {/* Empty placeholder to balance the grid on desktop and keep the title dead-center */}
+        <div className="hidden md:block"></div>
+
+        {/* The Title - Now perfectly in the middle */}
         <div className="flex items-center justify-center space-x-2">
           <span className="text-[#006F1D] text-3xl">🍃</span>
-          <h2 className="text-2xl md:text-3xl font-black text-[#2D3432] tracking-wide drop-shadow-sm text-center">
+          <h2 className="text-2xl md:text-3xl font-black text-[#2D3432] tracking-wide drop-shadow-sm text-center whitespace-nowrap">
             {t('introducing')}
           </h2>
         </div>
 
-        <div className="flex items-center justify-center gap-3 flex-wrap">
+        {/* The Controls - Pushed to the right on desktop (md:justify-end), centered on mobile */}
+        <div className="flex items-center justify-center md:justify-end gap-3 flex-wrap">
           {/* THE LANGUAGE DROPDOWN */}
           <select
             value={language}
@@ -63,7 +68,7 @@ const Hero = () => {
         </div>
       </header>
 
-      {/* 3. Main Content Area - FIXED FOR MOBILE */}
+      {/* 3. Main Content Area */}
       <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-8 items-center flex-grow w-full px-5 md:px-16 pb-12 md:pb-16 text-center md:text-left mt-4 md:mt-0">
 
         <div className="space-y-6 flex flex-col items-center md:items-start">
@@ -85,7 +90,7 @@ const Hero = () => {
           </button>
         </div>
 
-        {/* Stats Cards - FIXED FOR MOBILE */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-3 md:gap-6 w-full max-w-lg mx-auto md:ml-auto mt-6 md:mt-0">
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl md:rounded-3xl p-4 md:p-6 flex flex-col justify-center shadow-xl border border-[#DDE4E1]/50">
             <h3 className="text-3xl md:text-4xl font-black text-[#006F1D] mb-1 md:mb-2">10K+</h3>

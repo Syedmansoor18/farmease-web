@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import { supabase } from "../supabaseClient";
@@ -10,7 +10,7 @@ import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from "leaflet";
 
-// 🚨 Fix for Vite + Leaflet Default Icons (Using CDN to bypass bundler issues)
+// 🚨 Fix for Vite + Leaflet Default Icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
@@ -25,7 +25,38 @@ const ALL_CATEGORIES = [
   "Laser Land Leveller","Mulcher","Shredder","Tiller","Water Tanker",
 ];
 
-// 🚨 THIS MUST SIT OUTSIDE THE MAIN COMPONENT TO PREVENT HOOK ERRORS
+// 🚨 REVISED REAL-WORLD PRICING RULES 🚨
+const CATEGORY_BASE_PRICES = {
+  "tractor": 600000,
+  "harvester": 1500000,
+  "combine harvester": 2000000,
+  "rotavator": 120000,
+  "cultivator": 60000,
+  "plough": 50000,
+  "sprayer": 20000,
+  "irrigation pump": 35000,
+  "power tiller": 150000,
+  "thresher": 200000,
+  "default": 50000
+};
+
+// Resale drops value massively
+const SELL_CONDITION_MULTIPLIERS = {
+  "brand new": 1.0,
+  "new": 0.90,
+  "good": 0.75,
+  "used": 0.50
+};
+
+// Rental utility drops value much slower
+const RENT_CONDITION_MULTIPLIERS = {
+  "brand new": 1.0,
+  "new": 0.95,
+  "good": 0.85,
+  "used": 0.70
+};
+
+// 🚨 THIS MUST SIT OUTSIDE THE MAIN COMPONENT
 const MapEvents = ({ setPinPosition, setVillage, setEquipState, setPincode, showToast }) => {
   useMapEvents({
     click: async (e) => {
@@ -67,6 +98,11 @@ const EquipmentPostingPage = () => {
   const [availableNow, setAvailableNow]   = useState(editData.availableNow ?? true);
   const [category, setCategory]           = useState(editData.category || "");
   const [price, setPrice]                 = useState(editData.price || "");
+
+  // New States for Financial Engine
+  const [originalPrice, setOriginalPrice] = useState(editData.originalPrice || "");
+  const [securityDeposit, setSecurityDeposit] = useState(editData.securityDeposit || "");
+
   const [mainPhoto, setMainPhoto]         = useState(editData.mainPhoto || null);
   const [extraPhotos, setExtraPhotos]     = useState(editData.extraPhotos || []);
   const [dragOver, setDragOver]           = useState(false);
@@ -105,6 +141,66 @@ const EquipmentPostingPage = () => {
   const isOtherState = state === "other";
   const districts = state && !isOtherState ? INDIA_DATA[state] || [] : [];
 
+  // 🚨 THE SMART PRICING ENGINE 🚨
+  const minAllowedPrice = useMemo(() => {
+    if (!category) return 0;
+
+    const safeCategory = category.toLowerCase();
+    const brandNewValue = CATEGORY_BASE_PRICES[safeCategory] || CATEGORY_BASE_PRICES["default"];
+
+    const currentYear = new Date().getFullYear();
+    const parsedYear = parseInt(modelYear, 10);
+    const age = (!isNaN(parsedYear) && parsedYear <= currentYear) ? (currentYear - parsedYear) : 0;
+    const safeCondition = condition.toLowerCase();
+
+    if (listingIntent.toLowerCase() === "rent") {
+      // RENT MATH: Utility only depreciates by 5% a year (max 40% loss).
+      const utilityMultiplier = Math.max(0.60, 1 - (age * 0.05));
+      const rentCondMultiplier = RENT_CONDITION_MULTIPLIERS[safeCondition] || 0.85;
+      // 0.5% daily yield on utility value
+      return Math.floor(brandNewValue * utilityMultiplier * rentCondMultiplier * 0.005);
+    } else {
+      // SELL MATH: Resale depreciates by 10% a year (max 80% loss)
+      const ageDepreciationMultiplier = Math.max(0.20, 1 - (age * 0.10));
+      const sellCondMultiplier = SELL_CONDITION_MULTIPLIERS[safeCondition] || 0.75;
+      return Math.floor(brandNewValue * ageDepreciationMultiplier * sellCondMultiplier);
+    }
+  }, [category, listingIntent, condition, modelYear]);
+
+  // 🚨 DYNAMIC SECURITY DEPOSIT MINIMUM (3x Rent)
+  const minSecurityDeposit = useMemo(() => {
+    const baseForDeposit = price ? Number(price) : minAllowedPrice;
+    return baseForDeposit * 3;
+  }, [price, minAllowedPrice]);
+
+  // 🚨 THE FINANCIAL PROJECTION ENGINE 🚨
+  const financialMetrics = useMemo(() => {
+    if (!price || !originalPrice || Number(originalPrice) <= 0) return null;
+
+    const currentPrice = Number(price);
+    const boughtPrice = Number(originalPrice);
+
+    if (listingIntent.toLowerCase() === "sell") {
+      const retainedValue = ((currentPrice / boughtPrice) * 100).toFixed(1);
+      const profitLoss = currentPrice - boughtPrice;
+      return {
+        type: 'sell',
+        retainedValue,
+        profitLoss,
+        isProfit: profitLoss >= 0
+      };
+    } else {
+      const dailyYield = ((currentPrice / boughtPrice) * 100).toFixed(2);
+      const daysToBreakEven = Math.ceil(boughtPrice / currentPrice);
+      return {
+        type: 'rent',
+        dailyYield,
+        daysToBreakEven
+      };
+    }
+  }, [price, originalPrice, listingIntent]);
+
+
   const showToast = (msg) => {
     setLocationToast(msg);
     setTimeout(() => setLocationToast(""), 3000);
@@ -123,7 +219,6 @@ const EquipmentPostingPage = () => {
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
 
-        // Update Map!
         setMapCenter([lat, lng]);
         setPinPosition([lat, lng]);
         setMapZoom(13);
@@ -199,31 +294,44 @@ const EquipmentPostingPage = () => {
     }
   };
 
-  // 🚨 100% PURE BACKEND SUBMIT FUNCTION
+  // 🚨 PURE BACKEND SUBMIT FUNCTION
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // The Final Security Guards
+    if (Number(price) < minAllowedPrice) {
+      alert(`To ensure fair profit, the minimum price for this setup is ₹${minAllowedPrice.toLocaleString()}. Please adjust your price before posting.`);
+      return;
+    }
+
+    if (listingIntent.toLowerCase() === "rent" && Number(securityDeposit) < minSecurityDeposit) {
+      alert(`To protect your equipment, the Security Deposit must be at least 3x the daily rent (₹${minSecurityDeposit.toLocaleString()}).`);
+      return;
+    }
+
     setIsSubmitting(true);
     showToast(recordId ? (t('updatingListing') || "Updating listing...") : (t('preparingListing') || "Preparing listing..."));
 
     try {
-      // Must be a real user from Supabase now!
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         alert("You must be logged in to post equipment!");
         setIsSubmitting(false);
         return;
       }
-      console.log("✅ 1. Data saved to database!");
 
       let dbCondition = 'good';
       if (condition === 'Brand New' || condition === 'New') dbCondition = 'excellent';
       if (condition === 'Used') dbCondition = 'fair';
 
-      const fullDescription = `Brand: ${brand} | Model: ${modelYear}\n\n${description}\n\nListing Intent: ${listingIntent}`;
+      // Attach deposit info so it shows on the details page
+      let fullDescription = `Brand: ${brand} | Model: ${modelYear}\nOriginal Purchase Price: ₹${originalPrice}\n\n${description}\n\nListing Intent: ${listingIntent}`;
+      if (listingIntent.toLowerCase() === "rent") {
+        fullDescription += `\nSecurity Deposit Required: ₹${securityDeposit}`;
+      }
 
       let finalImageUrl = editData.image_url || null;
 
-      // Real Supabase Storage Upload
       if (mainPhoto && mainPhoto.rawFile) {
         showToast("Uploading image to cloud...");
         const fileExt = mainPhoto.name.split('.').pop();
@@ -261,7 +369,6 @@ const EquipmentPostingPage = () => {
         contact_number: phoneNumber
       };
 
-      // 🚨 SEND DIRECTLY TO BACKEND DATABASE
       const response = await fetch("http://localhost:5000/api/equipment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -278,7 +385,6 @@ const EquipmentPostingPage = () => {
       setRecordId(savedRecord.id);
 
       showToast(recordId ? (t('equipmentUpdated') || "Equipment updated successfully!") : (t('equipmentPosted') || "Equipment posted successfully!"));
-      console.log("✅ 2. About to navigate...");
 
       navigate("/post-success", {
         state: {
@@ -298,30 +404,31 @@ const EquipmentPostingPage = () => {
           description,
           listingIntent,
           availableNow,
-          image_url: finalImageUrl, // Safely passing the cloud URL
+          image_url: finalImageUrl,
           displayState: state === 'other' ? customState : state,
           displayDistrict: district || customDistrict
         }
       });
 
     } catch (error) {
-      console.error("🚨 3. CRASH IN SUBMIT:", error);
-      alert(error.message); // If it fails, it will pop up and tell you why!
+      console.error("🚨 CRASH IN SUBMIT:", error);
+      alert(error.message);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="bg-gray-50 min-h-screen flex" style={{ maxWidth: "100vw", overflowX: "hidden" }}>
+    <div className="bg-gray-50 min-h-screen flex max-w-[100vw] overflow-hidden">
 
       <Sidebar />
 
-      <div className="flex-1 min-w-0 py-5 px-5 ml-20">
-        <div className="flex gap-6">
+      <div className="flex-1 min-w-0 p-4 md:p-6 ml-0 md:ml-[76px] pb-28 md:pb-6 overflow-x-hidden overflow-y-auto w-full h-full">
+
+        <div className="flex flex-col lg:flex-row gap-6">
 
           {/* ══ LEFT COLUMN ══════════════════════════════════════════ */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 w-full">
 
             {/* Media Gallery */}
             <div className="mb-5">
@@ -330,40 +437,39 @@ const EquipmentPostingPage = () => {
               <input ref={mainInputRef}  type="file" accept="image/*"          className="hidden" onChange={(e) => handleMainFiles(e.target.files)} />
               <input ref={extraInputRef} type="file" accept="image/*" multiple  className="hidden" onChange={(e) => handleExtraFiles(e.target.files)} />
 
-              <div className="flex gap-3 items-start">
+              <div className="flex flex-col sm:flex-row gap-3 items-start w-full">
                 <div
                   onClick={() => !mainPhoto && mainInputRef.current.click()}
                   onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleDrop}
-                  className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center transition-all relative overflow-hidden flex-shrink-0 ${
+                  className={`w-full sm:w-[170px] h-48 sm:h-[148px] border-2 border-dashed rounded-xl flex flex-col items-center justify-center transition-all relative overflow-hidden flex-shrink-0 ${
                     mainPhoto
                       ? "border-green-400 bg-white cursor-default"
                       : "border-green-300 bg-green-50 cursor-pointer hover:bg-green-100"
                   } ${dragOver ? "border-green-600 scale-105" : ""}`}
-                  style={{ width: "170px", height: "148px" }}
                 >
                   {mainPhoto ? (
                     <>
                       <img src={mainPhoto.url} alt="main" className="w-full h-full object-cover" />
                       <button
                         onClick={(e) => { e.stopPropagation(); setMainPhoto(null); }}
-                        className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center z-10"
+                        className="absolute top-2 right-2 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center z-10"
                       >
-                        <svg viewBox="0 0 24 24" className="w-3 h-3 text-white fill-current">
+                        <svg viewBox="0 0 24 24" className="w-4 h-4 text-white fill-current">
                           <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                         </svg>
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); mainInputRef.current.click(); }}
-                        className="absolute bottom-0 inset-x-0 bg-black/40 text-white text-xs py-1 text-center"
+                        className="absolute bottom-0 inset-x-0 bg-black/50 text-white text-sm py-1.5 text-center"
                       >
                         {t('changePhoto') || "Change Photo"}
                       </button>
                     </>
                   ) : (
                     <>
-                      <svg viewBox="0 0 24 24" className="w-10 h-10 text-green-600 mb-2 fill-current">
+                      <svg viewBox="0 0 24 24" className="w-12 h-12 text-green-600 mb-2 fill-current">
                         <path d="M19.35 10.04A7.49 7.49 0 0012 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 000 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" />
                       </svg>
                       <span className="text-sm text-green-700 font-medium">{t('uploadMainPhoto') || "Upload Main Photo"}</span>
@@ -372,19 +478,18 @@ const EquipmentPostingPage = () => {
                   )}
                 </div>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-row sm:flex-col gap-2 w-full overflow-x-auto pb-2 sm:pb-0">
                   {extraPhotos.map((photo, i) => (
                     <div
                       key={i}
-                      className="rounded-lg overflow-hidden border border-gray-200 relative group flex-shrink-0"
-                      style={{ width: "72px", height: "70px" }}
+                      className="rounded-lg overflow-hidden border border-gray-200 relative group flex-shrink-0 w-[72px] h-[70px]"
                     >
                       <img src={photo.url} alt="" className="w-full h-full object-cover" />
                       <button
                         onClick={() => setExtraPhotos((p) => p.filter((_, idx) => idx !== i))}
-                        className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 rounded-full items-center justify-center hidden group-hover:flex"
+                        className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full flex sm:hidden group-hover:flex items-center justify-center"
                       >
-                        <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 text-white fill-current">
+                        <svg viewBox="0 0 24 24" className="w-3 h-3 text-white fill-current">
                           <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
                         </svg>
                       </button>
@@ -393,8 +498,7 @@ const EquipmentPostingPage = () => {
                   {extraPhotos.length < 4 && (
                     <div
                       onClick={() => extraInputRef.current.click()}
-                      className="border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-green-400 hover:bg-green-50 flex-shrink-0"
-                      style={{ width: "72px", height: "70px" }}
+                      className="border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-green-400 hover:bg-green-50 flex-shrink-0 w-[72px] h-[70px]"
                     >
                       <svg viewBox="0 0 24 24" className="w-6 h-6 text-gray-400 fill-current">
                         <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
@@ -415,7 +519,7 @@ const EquipmentPostingPage = () => {
             <div className="mb-4">
               <h2 className="text-sm font-semibold text-gray-700 mb-3">{t('basicDetails') || "Basic Details"}</h2>
 
-              <div className="grid grid-cols-2 gap-3 mb-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">{t('equipmentName') || "Equipment Name"}</label>
                   <input
@@ -439,7 +543,7 @@ const EquipmentPostingPage = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 mb-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">{t('brand') || "Brand"}</label>
                   <input
@@ -456,7 +560,7 @@ const EquipmentPostingPage = () => {
                     type="text"
                     value={modelYear}
                     onChange={(e) => setModelYear(e.target.value)}
-                    placeholder={t('e.g. 2023 Edition') || "e.g. 2023 Edition"}
+                    placeholder={t('e.g. 2020') || "e.g. 2020"}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 placeholder-gray-300 focus:outline-none focus:border-green-500 bg-white"
                   />
                 </div>
@@ -465,7 +569,7 @@ const EquipmentPostingPage = () => {
               <div className="mb-3">
                 <label className="text-xs text-gray-500 mb-1 block">{t('fullDescription') || "Full Description"}</label>
                 <textarea
-                  rows={3}
+                  rows={4}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={t('Tell potential buyers/renters about the history and maintenance of your equipment...') || "Tell potential buyers/renters about the history and maintenance of your equipment..."}
@@ -477,14 +581,14 @@ const EquipmentPostingPage = () => {
           </div>
 
           {/* ══ RIGHT COLUMN ═════════════════════════════════════════ */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 w-full">
 
             {/* Equipment Condition */}
             <div className="mb-5">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
                 {t('equipmentCondition') || "Equipment Condition"}
               </h2>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 {["Brand New", "New", "Good", "Used"].map((c) => (
                   <label key={c} onClick={() => setCondition(c)} className="flex items-center gap-2 cursor-pointer">
                     <div
@@ -494,7 +598,7 @@ const EquipmentPostingPage = () => {
                     >
                       {condition === c && <div className="w-2 h-2 rounded-full bg-green-600" />}
                     </div>
-                    <span className="text-xs text-gray-700">{c}</span>
+                    <span className="text-sm sm:text-xs text-gray-700">{c}</span>
                   </label>
                 ))}
               </div>
@@ -509,7 +613,7 @@ const EquipmentPostingPage = () => {
                   <button
                     key={intent}
                     onClick={() => setListingIntent(intent)}
-                    className={`flex-1 py-2 text-xs font-medium transition-colors capitalize ${
+                    className={`flex-1 py-3 sm:py-2 text-sm sm:text-xs font-medium transition-colors capitalize ${
                       listingIntent.toLowerCase() === intent.toLowerCase()
                         ? "bg-green-700 text-white"
                         : "bg-white text-gray-600 hover:bg-gray-50"
@@ -521,22 +625,126 @@ const EquipmentPostingPage = () => {
               </div>
             </div>
 
-            <div className="mb-5">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                {listingIntent.toLowerCase() === "sell" ? (t('selling Price') || "Selling Price (₹)") : (t('pricePerDay') || "Price/Day (₹)")}
-              </h2>
-              <div className="flex items-center border border-gray-200 rounded-lg bg-white focus-within:border-green-500">
-                <span className="pl-3 text-sm text-gray-400">₹</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  placeholder={listingIntent.toLowerCase() === "sell" ? "e.g., 50000" : "e.g., 1500"}
-                  className="flex-1 px-3 py-3 text-sm text-gray-700 bg-transparent focus:outline-none w-full"
-                />
+            {/* 🚨 FINANCIAL AND PRICING SECTION 🚨 */}
+            <div className="mb-6 bg-gray-50 p-4 rounded-xl border border-gray-200">
+
+              {/* 1. Original Price Input */}
+              <div className="mb-4">
+                <h2 className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">
+                  Original Purchase Price (₹)
+                </h2>
+                <div className="flex items-center border border-gray-300 rounded-lg bg-white focus-within:border-green-500 transition-colors">
+                  <span className="pl-3 pr-2 text-sm text-gray-400 font-medium">₹</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={originalPrice}
+                    onChange={(e) => setOriginalPrice(e.target.value)}
+                    placeholder="e.g. 800000"
+                    className="flex-1 px-2 py-2.5 text-sm text-gray-900 font-semibold bg-transparent focus:outline-none w-full"
+                  />
+                </div>
               </div>
+
+              {/* 2. Listing Price Input */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-xs font-bold text-green-800 uppercase tracking-wide">
+                    {listingIntent.toLowerCase() === "sell" ? "Your Selling Price (₹)" : "Price/Day (8-Hour Shift) (₹)"}
+                  </h2>
+                  {category && (
+                    <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-200">
+                      Min Suggested: ₹{minAllowedPrice.toLocaleString()}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center border-2 border-green-600 rounded-lg bg-white transition-colors shadow-sm">
+                  <span className="pl-3 pr-2 text-sm text-green-700 font-bold">₹</span>
+                  <input
+                    type="number"
+                    min={minAllowedPrice}
+                    step="1"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder={`Min: ${minAllowedPrice}`}
+                    className="flex-1 px-2 py-3 text-base text-gray-900 font-bold bg-transparent focus:outline-none w-full"
+                  />
+                </div>
+
+                {price && Number(price) < minAllowedPrice && (
+                  <p className="text-xs text-red-500 font-medium mt-1.5 flex items-center gap-1">
+                    <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current flex-shrink-0"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                    Price is below the fair market minimum of ₹{minAllowedPrice.toLocaleString()}.
+                  </p>
+                )}
+              </div>
+
+              {/* 🚨 3. SECURITY DEPOSIT (ONLY SHOWS IF RENTING) 🚨 */}
+              {listingIntent.toLowerCase() === "rent" && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <h2 className="text-xs font-bold text-gray-700 uppercase tracking-wide">
+                      Security Deposit (₹)
+                    </h2>
+                    <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-200">
+                      Min Required: ₹{minSecurityDeposit.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center border border-gray-300 rounded-lg bg-white transition-colors shadow-sm focus-within:border-green-500">
+                    <span className="pl-3 pr-2 text-sm text-gray-400 font-bold">₹</span>
+                    <input
+                      type="number"
+                      min={minSecurityDeposit}
+                      step="1"
+                      value={securityDeposit}
+                      onChange={(e) => setSecurityDeposit(e.target.value)}
+                      placeholder={`Min: ${minSecurityDeposit}`}
+                      className="flex-1 px-2 py-2.5 text-sm text-gray-900 font-bold bg-transparent focus:outline-none w-full"
+                    />
+                  </div>
+                  {securityDeposit && Number(securityDeposit) < minSecurityDeposit && (
+                    <p className="text-xs text-red-500 font-medium mt-1.5 flex items-center gap-1">
+                      <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current flex-shrink-0"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                      Deposit must be at least 3x the daily rent to protect your equipment.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* 4. The Financial Projection Dashboard */}
+              {financialMetrics && (
+                <div className="mt-5 bg-white border border-blue-100 rounded-lg p-3 shadow-sm animate-fade-in">
+                  <h3 className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-3 border-b border-blue-50 pb-2">Financial Projection</h3>
+
+                  {financialMetrics.type === 'sell' ? (
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-[10px] text-gray-500 uppercase font-semibold mb-0.5">Value Retained</p>
+                        <p className="text-lg font-black text-blue-900">{financialMetrics.retainedValue}%</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] text-gray-500 uppercase font-semibold mb-0.5">Net {financialMetrics.isProfit ? 'Profit' : 'Depreciation'}</p>
+                        <p className={`text-lg font-black ${financialMetrics.isProfit ? 'text-green-600' : 'text-red-500'}`}>
+                          {financialMetrics.isProfit ? '+' : '-'}₹{Math.abs(financialMetrics.profitLoss).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-[10px] text-gray-500 uppercase font-semibold mb-0.5">Daily Yield (ROI)</p>
+                        <p className="text-lg font-black text-blue-900">{financialMetrics.dailyYield}% / day</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] text-gray-500 uppercase font-semibold mb-0.5">Days to Break Even</p>
+                        <p className="text-lg font-black text-green-600">{financialMetrics.daysToBreakEven} Rents</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Storage Location */}
@@ -549,7 +757,7 @@ const EquipmentPostingPage = () => {
                     type="button"
                     onClick={handleUseCurrentLocation}
                     disabled={isLocating}
-                    className="text-xs text-green-700 font-medium hover:underline flex items-center gap-0.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    className="text-xs text-green-700 font-medium hover:underline flex items-center gap-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <svg viewBox="0 0 24 24" className={`w-3 h-3 fill-current ${isLocating ? 'animate-pulse' : ''}`}>
                       <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
@@ -564,12 +772,11 @@ const EquipmentPostingPage = () => {
                 </p>
               )}
 
-              {/* State + District */}
-              <div className="flex gap-2 mb-2">
+              <div className="flex flex-col sm:flex-row gap-2 mb-2">
                 <select
                   value={state}
                   onChange={(e) => { setState(e.target.value); setDistrict(""); setCustomState(""); setCustomDistrict(""); }}
-                  className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs text-gray-600 focus:outline-none bg-white cursor-pointer"
+                  className="flex-1 border border-gray-200 rounded-lg px-2 py-3 sm:py-2 text-sm sm:text-xs text-gray-600 focus:outline-none bg-white w-full"
                 >
                   <option value="">{t('selectState') || "Select State"}</option>
                   {STATE_NAMES.map((val) => (
@@ -582,7 +789,7 @@ const EquipmentPostingPage = () => {
                   <select
                     value={district}
                     onChange={(e) => setDistrict(e.target.value)}
-                    className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs text-gray-600 focus:outline-none bg-white cursor-pointer"
+                    className="flex-1 border border-gray-200 rounded-lg px-2 py-3 sm:py-2 text-sm sm:text-xs text-gray-600 focus:outline-none bg-white w-full"
                   >
                     <option value="">{t('selectDistrict') || "Select District"}</option>
                     {districts.map((d) => <option key={d} value={d}>{d}</option>)}
@@ -594,7 +801,7 @@ const EquipmentPostingPage = () => {
                     disabled={!isOtherState && !state}
                     value={isOtherState ? customDistrict : district}
                     onChange={(e) => isOtherState ? setCustomDistrict(e.target.value) : setDistrict(e.target.value)}
-                    className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs text-gray-600 placeholder-gray-300 focus:outline-none focus:border-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 border border-gray-200 rounded-lg px-3 py-3 sm:py-2 text-sm sm:text-xs text-gray-600 placeholder-gray-300 focus:outline-none focus:border-green-500 disabled:opacity-50 disabled:cursor-not-allowed w-full"
                   />
                 )}
               </div>
@@ -605,30 +812,28 @@ const EquipmentPostingPage = () => {
                   placeholder={t('typeYourState') || "Type your state..."}
                   value={customState}
                   onChange={(e) => setCustomState(e.target.value)}
-                  className="w-full mb-2 border border-green-300 rounded-lg px-2 py-2 text-xs text-gray-700 placeholder-gray-300 focus:outline-none focus:border-green-500"
+                  className="w-full mb-2 border border-green-300 rounded-lg px-3 py-3 sm:py-2 text-sm sm:text-xs text-gray-700 placeholder-gray-300 focus:outline-none focus:border-green-500"
                 />
               )}
 
-              {/* Village + Pincode */}
-              <div className="flex gap-2 mb-2">
+              <div className="flex flex-col sm:flex-row gap-2 mb-2">
                 <input
                   type="text"
                   value={village}
                   onChange={(e) => setVillage(e.target.value)}
                   placeholder={t('villageName') || "Village Name"}
-                  className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs text-gray-600 placeholder-gray-300 focus:outline-none focus:border-green-500"
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-3 sm:py-2 text-sm sm:text-xs text-gray-600 placeholder-gray-300 focus:outline-none focus:border-green-500 w-full"
                 />
                 <input
                   type="text"
                   value={pincode}
                   onChange={(e) => setPincode(e.target.value)}
                   placeholder={t('pincode') || "Pincode"}
-                  className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs text-gray-600 placeholder-gray-300 focus:outline-none focus:border-green-500"
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-3 sm:py-2 text-sm sm:text-xs text-gray-600 placeholder-gray-300 focus:outline-none focus:border-green-500 w-full"
                 />
               </div>
 
-              {/* 🚨 REAL LEAFLET MAP */}
-              <div className="w-full h-40 bg-gray-100 rounded-xl overflow-hidden relative z-0 border border-gray-200 cursor-pointer">
+              <div className="w-full h-48 sm:h-40 bg-gray-100 rounded-xl overflow-hidden relative z-0 border border-gray-200 mt-3">
                 <MapContainer center={mapCenter} zoom={mapZoom} style={{ height: '100%', width: '100%' }}>
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
@@ -643,42 +848,38 @@ const EquipmentPostingPage = () => {
                   {pinPosition && <Marker position={pinPosition} />}
                 </MapContainer>
 
-                {/* Tiny overlay instruction */}
-                <div className="absolute bottom-2 left-2 right-2 bg-white/90 backdrop-blur text-xs text-gray-600 px-2 py-1 rounded-md text-center shadow-sm pointer-events-none z-[1000]">
+                <div className="absolute bottom-2 left-2 right-2 bg-white/90 backdrop-blur text-xs text-gray-600 px-2 py-1.5 rounded-md text-center shadow-sm pointer-events-none z-[1000]">
                   Click map to drop a pin & auto-fill address
                 </div>
               </div>
 
             </div>
           </div>
-          {/* ══ END RIGHT COLUMN ══════════════════════════════════════ */}
 
         </div>
 
-        {/* ══ FULL-WIDTH BOTTOM SECTION ════════════════════════════ */}
-
         {/* Available Now toggle */}
-        <div className="bg-white border border-gray-100 rounded-xl px-4 py-3 flex items-center justify-between mb-3 mt-4">
+        <div className="bg-white border border-gray-100 rounded-xl px-4 py-4 sm:py-3 flex items-center justify-between mb-4 mt-6">
           <div>
             <p className="text-sm font-medium text-gray-700">{t('availableNow') || "Available Now"}</p>
             <p className="text-xs text-gray-400">{t('turnOffFutureDate') || "Turn off to set future date"}</p>
           </div>
           <button
             onClick={() => setAvailableNow(!availableNow)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+            className={`relative inline-flex h-7 w-12 sm:h-6 sm:w-11 items-center rounded-full transition-colors ${
               availableNow ? "bg-green-600" : "bg-gray-300"
             }`}
           >
             <span
-              className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
-                availableNow ? "translate-x-6" : "translate-x-1"
+              className={`inline-block h-5 w-5 sm:h-4 sm:w-4 rounded-full bg-white shadow transition-transform ${
+                availableNow ? "translate-x-6 sm:translate-x-6" : "translate-x-1"
               }`}
             />
           </button>
         </div>
 
         {/* Contact Information */}
-        <div className="bg-white border border-gray-100 rounded-xl px-4 py-4 mb-4">
+        <div className="bg-white border border-gray-100 rounded-xl px-4 py-4 mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Primary Contact Number <span className="text-red-500">*</span>
           </label>
@@ -691,14 +892,14 @@ const EquipmentPostingPage = () => {
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
               disabled={isVerified}
-              className={`flex-1 px-4 py-2.5 rounded-xl border ${
+              className={`flex-1 px-4 py-3 sm:py-2.5 rounded-xl border ${
                 isVerified 
                   ? "bg-gray-50 border-green-200 text-gray-500 cursor-not-allowed" 
                   : "border-gray-200 focus:ring-2 focus:ring-green-500"
-              } outline-none transition-all text-sm`}
+              } outline-none transition-all text-sm w-full`}
             />
 
-            <div className="flex items-center">
+            <div className="flex items-center w-full sm:w-auto">
               {!isVerified ? (
                 <>
                   {!showOtpInput ? (
@@ -706,7 +907,7 @@ const EquipmentPostingPage = () => {
                       type="button"
                       onClick={handleSendOTP}
                       disabled={isVerifying || !phoneNumber || phoneNumber.length < 10}
-                      className="w-full sm:w-auto whitespace-nowrap bg-green-50 text-green-700 px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-green-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-green-200 cursor-pointer"
+                      className="w-full sm:w-auto whitespace-nowrap bg-green-50 text-green-700 px-5 py-3 sm:py-2.5 rounded-xl text-sm font-medium hover:bg-green-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-green-200"
                     >
                       {isVerifying ? "Sending..." : "Verify Number"}
                     </button>
@@ -718,12 +919,12 @@ const EquipmentPostingPage = () => {
                         placeholder="OTP"
                         value={otpValue}
                         onChange={(e) => setOtpValue(e.target.value)}
-                        className="w-20 px-3 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-green-500 outline-none text-center tracking-widest text-sm"
+                        className="w-20 flex-1 sm:flex-none px-3 py-3 sm:py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-green-500 outline-none text-center tracking-widest text-sm"
                       />
                       <button
                         type="button"
                         onClick={handleConfirmOTP}
-                        className="bg-green-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors cursor-pointer"
+                        className="bg-green-600 text-white px-5 sm:px-4 py-3 sm:py-2.5 rounded-xl text-sm font-medium hover:bg-green-700 transition-colors"
                       >
                         Confirm
                       </button>
@@ -731,7 +932,7 @@ const EquipmentPostingPage = () => {
                   )}
                 </>
               ) : (
-                <div className="w-full sm:w-auto flex items-center justify-center gap-2 bg-green-50 text-green-700 px-5 py-2.5 rounded-xl text-sm font-semibold border border-green-200">
+                <div className="w-full sm:w-auto flex items-center justify-center gap-2 bg-green-50 text-green-700 px-5 py-3 sm:py-2.5 rounded-xl text-sm font-semibold border border-green-200">
                   <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
                     <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
                   </svg>
@@ -744,26 +945,26 @@ const EquipmentPostingPage = () => {
           <button
             type="button"
             onClick={() => setShowAltNumber(!showAltNumber)}
-            className="mt-4 w-full text-sm text-green-700 font-medium flex items-center justify-center gap-1 hover:underline cursor-pointer bg-transparent border-none"
+            className="mt-4 w-full text-sm text-green-700 font-medium flex items-center justify-center gap-1 hover:underline py-2"
           >
             {showAltNumber ? "- Remove Alternate Number" : "+ Add Alternate Number"}
           </button>
 
           {showAltNumber && (
-            <div className="mt-4 animate-fade-in flex flex-col gap-1 border-t border-gray-100 pt-3">
+            <div className="mt-2 animate-fade-in flex flex-col gap-1 border-t border-gray-100 pt-3">
               <label className="text-sm font-medium text-gray-700 mb-1">
                 {t('alternateNumber') || "Alternate Number"} <span className="text-gray-400 font-normal">(Optional)</span>
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="tel"
                   placeholder="10-digit mobile number"
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-green-500 outline-none transition-all text-sm"
+                  className="flex-1 px-4 py-3 sm:py-2.5 rounded-xl border border-gray-200 focus:ring-2 focus:ring-green-500 outline-none transition-all text-sm w-full"
                 />
                 <button
                   type="button"
                   onClick={() => alert("Verification code sent to alternate number!")}
-                  className="bg-gray-100 hover:bg-gray-200 text-green-700 font-semibold px-5 rounded-xl border border-gray-200 transition-colors text-sm cursor-pointer"
+                  className="bg-gray-100 hover:bg-gray-200 text-green-700 font-semibold px-5 py-3 sm:py-2.5 rounded-xl border border-gray-200 transition-colors text-sm w-full sm:w-auto"
                 >
                   Verify
                 </button>
@@ -776,14 +977,14 @@ const EquipmentPostingPage = () => {
         <button type="button"
           onClick={handleSubmit}
           disabled={isSubmitting}
-          className={`w-full ${isSubmitting ? 'bg-green-400' : 'bg-green-700 hover:bg-green-800'} text-white font-semibold rounded-xl py-3.5 flex items-center justify-center gap-2 transition-colors shadow-sm cursor-pointer`}
+          className={`w-full ${isSubmitting ? 'bg-green-400' : 'bg-green-700 hover:bg-green-800'} text-white font-semibold rounded-xl py-4 sm:py-3.5 flex items-center justify-center gap-2 transition-colors shadow-sm cursor-pointer text-base sm:text-sm`}
         >
           {isSubmitting ? (t('Processing') || "Processing...") : (recordId ? (t('Update Equipment') || "Update Equipment") : (t('Post Equipment') || "Post Equipment"))}
-          <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
+          <svg viewBox="0 0 24 24" className="w-5 h-5 sm:w-4 sm:h-4 fill-current">
             <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
           </svg>
         </button>
-        <p className="text-center text-xs text-gray-400 mt-2 mb-4">
+        <p className="text-center text-xs text-gray-400 mt-3 mb-2">
           {t('Terms Agreement Prefix') || "By posting, you agree to Farmease's"}{" "}
           <span className="underline cursor-pointer">{t('termsOfService') || "Terms of Service"}</span> {t('and') || "and"}{" "}
           <span className="underline cursor-pointer">{t('communityGuidelines') || "Community Guidelines"}</span>

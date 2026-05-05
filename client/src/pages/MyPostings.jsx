@@ -16,8 +16,6 @@ export default function MyPostings() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [postToDelete, setPostToDelete] = useState(null);
 
-
-
   const fetchDashboardData = async () => {
     try {
       setIsLoading(true);
@@ -85,7 +83,7 @@ export default function MyPostings() {
     }
   };
 
-    useEffect(() => {
+  useEffect(() => {
     fetchDashboardData();
   }, []);
 
@@ -149,10 +147,12 @@ export default function MyPostings() {
   };
 
   return (
-    <div className="flex bg-gray-50 min-h-screen">
+    // 🚨 Added max-w-[100vw] and overflow-hidden to prevent horizontal mobile swiping
+    <div className="flex bg-gray-50 min-h-screen max-w-[100vw] overflow-hidden">
       <Sidebar />
 
-      <main className="flex-1 ml-20 p-4 sm:p-6 overflow-y-auto">
+      {/* 🚨 Adjusted margin for mobile, added pb-28 for bottom navigation clearance */}
+      <main className="flex-1 ml-0 md:ml-20 p-4 sm:p-6 pb-28 md:pb-8 overflow-x-hidden overflow-y-auto w-full">
 
         {/* Breadcrumb */}
         <nav className="text-xs text-gray-400 mb-4 flex items-center gap-1">
@@ -162,15 +162,15 @@ export default function MyPostings() {
           <span className="text-blue-700">&gt; {t("myPostings")}</span>
         </nav>
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
+        {/* Header - 🚨 Stacked to column on mobile */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">{t("myPostings")}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t("myPostings")}</h1>
             <p className="text-sm text-gray-400 mt-0.5">{t("managePostings")}</p>
           </div>
           <button
             onClick={() => navigate("/list-equipment")}
-            className="bg-green-700 hover:bg-green-800 text-white text-sm font-semibold px-4 py-2 rounded-xl border-none cursor-pointer transition-colors flex items-center gap-2"
+            className="w-full sm:w-auto justify-center bg-green-700 hover:bg-green-800 text-white text-sm font-semibold px-5 py-3 sm:py-2 rounded-xl border-none cursor-pointer transition-colors flex items-center gap-2 shadow-sm"
           >
             + {t("addNewEquipment")}
           </button>
@@ -180,20 +180,23 @@ export default function MyPostings() {
         {requests.length > 0 && (
           <div className="mb-8">
             <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse"></span>
               Pending Requests ({requests.length})
             </h2>
             <div className="flex flex-col gap-3 w-full">
               {requests.map(req => (
-                <div key={req._id || req.id} className="bg-orange-50 rounded-2xl border border-orange-200 shadow-sm flex items-center gap-4 p-4">
-                  <img src={req.imageUrl} alt={req.equipmentName} className="w-16 h-16 rounded-xl object-cover shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm text-gray-900">{req.equipmentName}</p>
-                    <p className="text-orange-700 font-semibold text-xs mt-0.5">Requested for {req.rentalDays} days • ₹{req.totalAmount}</p>
+                // 🚨 Switched to flex-col on mobile, flex-row on larger screens
+                <div key={req._id || req.id} className="bg-orange-50 rounded-2xl border border-orange-200 shadow-sm flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4">
+                  <div className="flex gap-3 sm:gap-4 items-center w-full sm:w-auto min-w-0">
+                    <img src={req.imageUrl} alt={req.equipmentName} className="w-16 h-16 sm:w-16 sm:h-16 rounded-xl object-cover shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sm sm:text-base text-gray-900 truncate">{req.equipmentName}</p>
+                      <p className="text-orange-700 font-semibold text-xs sm:text-sm mt-0.5">Requested for {req.rentalDays} days • ₹{req.totalAmount}</p>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => handleAcceptRequest(req)} className="bg-green-600 hover:bg-green-700 text-white text-xs font-bold px-4 py-2 rounded-lg cursor-pointer">
-                      Accept
+                  <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0 sm:ml-auto">
+                    <button onClick={() => handleAcceptRequest(req)} className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white text-sm sm:text-xs font-bold px-4 py-2.5 sm:py-2 rounded-lg cursor-pointer transition-colors">
+                      Accept Request
                     </button>
                   </div>
                 </div>
@@ -203,45 +206,52 @@ export default function MyPostings() {
         )}
 
         <h2 className="text-lg font-bold text-gray-900 mb-3">Your Equipment</h2>
+
         {/* Posting Cards */}
         {isLoading ? (
           <div className="text-center py-10 text-green-700 font-bold">Loading your equipment...</div>
         ) : (
           <div className="flex flex-col gap-3 w-full">
             {postings.map(posting => (
+              // 🚨 Structured to push action buttons to a new row on mobile
               <div
                 key={posting.id}
                 onClick={() => navigate("/post-success", { state: posting.editPayload })}
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 p-3 cursor-pointer hover:shadow-md transition-shadow"
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row gap-3 sm:gap-4 p-3 sm:p-4 cursor-pointer hover:shadow-md transition-shadow"
               >
-                {/* Image */}
-                <img
-                  src={posting.img}
-                  alt={posting.nameKey}
-                  className="w-20 h-16 sm:w-24 sm:h-20 rounded-xl object-cover shrink-0"
-                />
 
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-bold text-sm text-gray-900">{posting.nameKey}</p>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                      posting.statusKey === "statusAvailable"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-orange-100 text-orange-600"
-                    }`}>
-                      {t(posting.statusKey)}
-                    </span>
-                  </div>
-                  <p className="text-green-700 font-semibold text-sm mt-0.5">{posting.price}</p>
-                  <div className="flex items-center gap-4 mt-1 flex-wrap">
-                    <span className="text-xs text-gray-400">Posted on: {posting.postedOnKey}</span>
+                <div className="flex gap-3 sm:gap-4 w-full sm:w-auto sm:flex-1 min-w-0 items-center">
+                  {/* Image */}
+                  <img
+                    src={posting.img}
+                    alt={posting.nameKey}
+                    className="w-20 h-20 sm:w-24 sm:h-20 rounded-xl object-cover shrink-0"
+                  />
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <p className="font-bold text-sm sm:text-base text-gray-900 truncate">{posting.nameKey}</p>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                        posting.statusKey === "statusAvailable"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-orange-100 text-orange-600"
+                      }`}>
+                        {t(posting.statusKey)}
+                      </span>
+                    </div>
+                    <p className="text-green-700 font-semibold text-sm">
+                      {posting.price}
+                    </p>
+                    <div className="flex items-center gap-4 mt-1">
+                      <span className="text-[11px] sm:text-xs text-gray-400">Posted on: {posting.postedOnKey}</span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Actions: ONLY Edit and Delete */}
                 <div
-                  className="flex items-center gap-2 shrink-0 flex-wrap justify-end"
+                  className="flex items-center gap-2 shrink-0 flex-row w-full sm:w-auto sm:justify-end border-t border-gray-50 sm:border-none pt-2 sm:pt-0"
                   onClick={e => e.stopPropagation()}
                 >
                   <button
@@ -249,7 +259,7 @@ export default function MyPostings() {
                       e.stopPropagation();
                       navigate("/list-equipment", { state: posting.editPayload });
                     }}
-                    className="text-xs font-semibold px-4 py-2 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors"
+                    className="flex-1 sm:flex-none text-xs sm:text-sm font-semibold px-4 py-2.5 sm:py-2 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors text-center"
                   >
                     {t("editListing") || "Edit"}
                   </button>
@@ -259,7 +269,7 @@ export default function MyPostings() {
                       e.stopPropagation();
                       confirmDelete(posting.id);
                     }}
-                    className="text-xs font-semibold px-4 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer transition-colors bg-white"
+                    className="flex-1 sm:flex-none text-xs sm:text-sm font-semibold px-4 py-2.5 sm:py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 cursor-pointer transition-colors bg-white text-center"
                   >
                     {t("delete") || "Delete"}
                   </button>
@@ -268,7 +278,7 @@ export default function MyPostings() {
             ))}
 
             {postings.length === 0 && (
-              <div className="text-center py-20 text-gray-400">
+              <div className="text-center py-20 text-gray-400 bg-white rounded-2xl border border-gray-100 border-dashed">
                 <p className="text-base font-semibold text-gray-600">{t("noPostingsYet")}</p>
                 <p className="text-sm mt-1">You haven't posted any equipment yet.</p>
               </div>
@@ -278,8 +288,8 @@ export default function MyPostings() {
 
         {/* 🚨 THE CUSTOM DELETE CONFIRMATION POP-UP */}
         {showDeleteModal && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-6 w-[320px] text-center shadow-xl animate-fade-in">
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] px-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-[320px] text-center shadow-xl animate-fade-in">
               <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg viewBox="0 0 24 24" className="w-6 h-6 text-red-600 fill-current">
                   <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
@@ -296,13 +306,13 @@ export default function MyPostings() {
                     setShowDeleteModal(false);
                     setPostToDelete(null);
                   }}
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-2.5 rounded-xl transition-colors cursor-pointer"
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-2.5 rounded-xl transition-colors cursor-pointer text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={executeDelete}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 rounded-xl transition-colors cursor-pointer"
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 rounded-xl transition-colors cursor-pointer text-sm"
                 >
                   Yes, Delete
                 </button>

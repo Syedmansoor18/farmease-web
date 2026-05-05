@@ -45,21 +45,20 @@ function StatusBadge({ status, t }) {
 }
 
 // ── Equipment Card ────────────────────────────────────────────────────────────
-// 🚨 Notice we now pass `liked` and `onToggle` as props from the main component!
 function EquipmentCard({ item, t, liked, onToggle }) {
   const navigate = useNavigate();
   const isRent = item.isRent;
 
   return (
     <div
-      className="bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-lg transition-shadow duration-200 cursor-pointer flex flex-col"
+      className="bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-lg transition-shadow duration-200 cursor-pointer flex flex-col w-full"
       onClick={() => navigate("/equipment-detail", { state: { equipment: item, from: "search" } })}
     >
       <div className="relative">
         <img
           src={item.image_url || item.image || "https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=400&q=80"}
           alt={item.name}
-          className="w-full h-40 object-cover"
+          className="w-full h-48 sm:h-40 object-cover"
         />
         <button
           onClick={onToggle}
@@ -72,20 +71,20 @@ function EquipmentCard({ item, t, liked, onToggle }) {
         </div>
       </div>
 
-      <div className="p-3 flex flex-col gap-1 flex-1">
-        <p className="font-bold text-sm text-gray-900 leading-tight capitalize">{item.name}</p>
-        <div className="flex items-center gap-1 text-xs text-gray-500 capitalize">
+      <div className="p-3 md:p-4 flex flex-col gap-1 flex-1">
+        <p className="font-bold text-sm md:text-base text-gray-900 leading-tight capitalize truncate">{item.name}</p>
+        <div className="flex items-center gap-1 text-xs text-gray-500 capitalize truncate">
           <MapPinIcon color="#2e7d32" size={12} />
           {item.location || item.district}, {item.state}
         </div>
-        <div className="mt-auto flex justify-between items-center pt-2">
+        <div className="mt-auto flex justify-between items-center pt-3">
           <div>
-            <span className="font-bold text-sm text-gray-900">₹{item.displayPrice.toLocaleString("en-IN")}</span>
+            <span className="font-bold text-base md:text-sm text-gray-900">₹{item.displayPrice.toLocaleString("en-IN")}</span>
             <span className="text-xs text-gray-400"> {isRent ? "/ day" : ""}</span>
           </div>
           <button
             onClick={e => e.stopPropagation()}
-            className={`text-white text-xs font-semibold px-4 py-1.5 rounded-lg border-none cursor-pointer ${isRent ? "bg-green-800" : "bg-blue-800"}`}
+            className={`text-white text-xs font-semibold px-4 py-1.5 md:py-2 rounded-lg border-none cursor-pointer ${isRent ? "bg-green-800" : "bg-blue-800"}`}
           >
             {isRent ? t("intentRent") || "Rent" : t("buy") || "Buy"}
           </button>
@@ -121,8 +120,8 @@ export default function SearchScreen() {
   useEffect(() => {
     const loadRealSavedItems = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return; 
-      
+      if (!user) return;
+
       setCurrentUser(user);
 
       try {
@@ -139,8 +138,6 @@ export default function SearchScreen() {
     loadRealSavedItems();
   }, []);
 
-
-// 1. A pure helper function: No state changes, just data fetching!
   const executeSearch = async (searchTerm, currentMode, currentState, currentCategory) => {
     const baseUrl = "http://localhost:5000/api/search";
     const params = new URLSearchParams({
@@ -177,7 +174,6 @@ export default function SearchScreen() {
     });
   };
 
-  // 2. Used when the user presses "Enter" or clicks the Search Button
   const handleManualSearch = async () => {
     setIsLoading(true);
     try {
@@ -190,16 +186,14 @@ export default function SearchScreen() {
     }
   };
 
-  // 3. Used when the user clicks a dropdown (Auto-fetches safely)
   useEffect(() => {
-    let isMounted = true; // Safety flag to prevent memory leaks
+    let isMounted = true;
 
     const runFilterFetch = async () => {
       setIsLoading(true);
       try {
         const results = await executeSearch(search, mode, selectedState, selectedCategory);
-        // Only update the screen if the user hasn't left the page
-        if (isMounted) setLiveEquipment(results); 
+        if (isMounted) setLiveEquipment(results);
       } catch (error) {
         console.error("Error fetching filtered results:", error);
       } finally {
@@ -209,7 +203,7 @@ export default function SearchScreen() {
 
     runFilterFetch();
 
-    return () => { isMounted = false; }; // Cleanup function
+    return () => { isMounted = false; };
   }, [mode, selectedState, selectedCategory]);
 
   const sorted = useMemo(() => {
@@ -219,7 +213,6 @@ export default function SearchScreen() {
     return arr;
   }, [liveEquipment, sortBy]);
 
-  // 🚨 The Real Database Toggle Function
   const handleToggleSave = async (item, e) => {
     e.stopPropagation();
 
@@ -230,14 +223,12 @@ export default function SearchScreen() {
 
     const isCurrentlySaved = savedItems.some(saved => saved.id === item.id);
 
-    // Optimistic UI Update
     if (isCurrentlySaved) {
       setSavedItems(prev => prev.filter(saved => saved.id !== item.id));
     } else {
       setSavedItems(prev => [...prev, item]);
     }
 
-    // Backend Sync
     try {
       const response = await fetch("http://localhost:5000/api/saved/toggle", {
         method: "POST",
@@ -251,7 +242,6 @@ export default function SearchScreen() {
       if (!response.ok) throw new Error("Database rejected the save");
     } catch (error) {
       console.error("Database sync failed:", error);
-      // Revert if failed
       if (isCurrentlySaved) {
          setSavedItems(prev => [...prev, item]);
       } else {
@@ -261,12 +251,13 @@ export default function SearchScreen() {
   };
 
   return (
-    <div className="bg-[#f4f6f3] min-h-screen font-sans" style={{ maxWidth: "100vw", overflowX: "hidden" }}>
+    <div className="bg-[#f4f6f3] min-h-screen font-sans max-w-[100vw] overflow-hidden">
       <Sidebar />
-      <div className="p-6" style={{ marginLeft: "76px" }}>
+      {/* 🚨 Adjusted margin for desktop, zero margin for mobile. Added bottom padding. */}
+      <div className="ml-0 md:ml-[76px] p-4 md:p-6 pb-28 md:pb-6 overflow-y-auto overflow-x-hidden w-full h-full">
 
-        <div className="flex gap-2 mb-4">
-          <div className="flex-1 relative">
+        <div className="flex flex-col sm:flex-row gap-2 mb-4">
+          <div className="flex-1 relative w-full">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 flex"><SearchIcon /></span>
             <input
               type="text"
@@ -279,43 +270,43 @@ export default function SearchScreen() {
           </div>
           <button
             onClick={handleManualSearch}
-            className="bg-green-800 hover:bg-green-900 transition-colors text-white border-none rounded-full px-6 py-3 text-sm font-semibold cursor-pointer flex items-center gap-2"
+            className="w-full sm:w-auto justify-center bg-green-800 hover:bg-green-900 transition-colors text-white border-none rounded-full px-6 py-3 text-sm font-semibold cursor-pointer flex items-center gap-2"
           >
             <SearchIcon /> {t("search")}
           </button>
         </div>
 
-        <div className="flex gap-2 items-center mb-3 flex-wrap">
-          {/* ... Dropdowns remain exactly the same ... */}
-          <div className="relative">
-            <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} className="appearance-none py-2 pl-3 pr-8 rounded-lg border-2 border-gray-200 text-sm bg-white cursor-pointer outline-none">
+        <div className="flex flex-col md:flex-row gap-3 md:items-center mb-4 flex-wrap">
+
+          <div className="relative w-full md:w-auto">
+            <select value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} className="w-full md:w-auto appearance-none py-2.5 pl-3 pr-8 rounded-lg border-2 border-gray-200 text-sm bg-white cursor-pointer outline-none">
               {CATEGORIES.map(c => <option key={c.key} value={c.key}>{t(c.labelKey)}</option>)}
             </select>
             <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none flex"><ChevronDownIcon /></span>
           </div>
 
-          <div className="relative">
+          <div className="relative w-full md:w-auto">
             <span className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none flex"><MapPinIcon color="#2e7d32" size={13} /></span>
-            <select value={selectedState} onChange={e => setSelectedState(e.target.value)} className="appearance-none py-2 pl-7 pr-8 rounded-lg border-2 border-gray-200 text-sm bg-white cursor-pointer outline-none min-w-[160px]">
+            <select value={selectedState} onChange={e => setSelectedState(e.target.value)} className="w-full md:w-auto appearance-none py-2.5 pl-7 pr-8 rounded-lg border-2 border-gray-200 text-sm bg-white cursor-pointer outline-none min-w-[160px]">
               {INDIAN_STATES.map(s => <option key={s}>{s}</option>)}
             </select>
             <span className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none flex"><ChevronDownIcon /></span>
           </div>
 
-          <div className="flex rounded-lg overflow-hidden border-2 border-green-800">
+          <div className="flex w-full md:w-auto rounded-lg overflow-hidden border-2 border-green-800">
             {[ ["rent", t("intentRent") || "Rent"], ["buy", t("buy") || "Buy"], ["all", t("all") || "All"] ].map(([m, label]) => (
               <button
                 key={m}
                 onClick={() => setMode(m)}
-                className={`px-4 py-2 text-sm font-semibold capitalize border-none cursor-pointer transition-all flex-1 ${mode === m ? "bg-green-800 text-white" : "bg-white text-green-800 hover:bg-green-50"}`}
+                className={`px-4 py-2.5 md:py-2 text-sm font-semibold capitalize border-none cursor-pointer transition-all flex-1 ${mode === m ? "bg-green-800 text-white" : "bg-white text-green-800 hover:bg-green-50"}`}
               >
                 {label}
               </button>
             ))}
           </div>
 
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-sm text-gray-400">{t("sortBy")}:</span>
+          <div className="w-full md:w-auto md:ml-auto flex items-center justify-between md:justify-end gap-2 mt-2 md:mt-0">
+            <span className="text-sm text-gray-500 font-medium md:text-gray-400">{t("sortBy")}:</span>
             <div className="relative">
               <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="appearance-none py-2 pl-3 pr-8 rounded-lg border-2 border-gray-200 text-sm bg-white cursor-pointer outline-none">
                 <option value="recommended">{t("recommended")}</option>
@@ -327,19 +318,24 @@ export default function SearchScreen() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 mb-5 flex-wrap">
+        <div className="flex items-center gap-2 mb-6 overflow-x-auto no-scrollbar pb-2 sm:pb-0 sm:flex-wrap">
           {CATEGORIES.map(cat => (
             <button
               key={cat.key}
               onClick={() => setSelectedCategory(cat.key)}
-              className={`px-4 py-1.5 rounded-full border-2 text-sm font-medium cursor-pointer transition-all ${selectedCategory === cat.key ? "border-green-800 bg-green-800 text-white" : "border-gray-200 bg-white text-gray-500"}`}
+              className={`whitespace-nowrap px-4 py-1.5 rounded-full border-2 text-sm font-medium cursor-pointer transition-all ${selectedCategory === cat.key ? "border-green-800 bg-green-800 text-white" : "border-gray-200 bg-white text-gray-500"}`}
             >
               {t(cat.labelKey)}
             </button>
           ))}
-          <span className="ml-auto text-sm text-gray-500 font-medium">
+          <span className="hidden sm:block ml-auto text-sm text-gray-500 font-medium">
             {isLoading ? "Searching..." : `${sorted.length} ${t("resultsFound")}`}
           </span>
+        </div>
+
+        {/* Mobile only results counter */}
+        <div className="block sm:hidden text-sm text-gray-500 font-medium mb-4">
+          {isLoading ? "Searching..." : `${sorted.length} ${t("resultsFound")}`}
         </div>
 
         {isLoading ? (
@@ -351,13 +347,13 @@ export default function SearchScreen() {
             <p className="text-sm text-gray-400 mt-1">{t("tryDifferentSearch")}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(235px,1fr))] gap-4">
-            {/* 🚨 Passing the saved status and the toggle function down to the card */}
+          /* 🚨 Responsive Grid: 1 column on mobile, drops into standard grid on sm+ screens */
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[repeat(auto-fill,minmax(235px,1fr))] gap-4">
             {sorted.map(item => (
-              <EquipmentCard 
-                key={item.id} 
-                item={item} 
-                t={t} 
+              <EquipmentCard
+                key={item.id}
+                item={item}
+                t={t}
                 liked={savedItems.some(saved => saved.id === item.id)}
                 onToggle={(e) => handleToggleSave(item, e)}
               />
