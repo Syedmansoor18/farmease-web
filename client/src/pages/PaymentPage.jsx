@@ -80,13 +80,16 @@ export default function PaymentPage() {
   };
 
   // 6. PAYMENT HANDLER
-  const handlePayment = async () => {
+const handlePayment = async () => {
     const res = await loadRazorpayScript();
 
     if (!res) {
       alert("Failed to load Razorpay SDK. Please check your internet connection.");
       return;
     }
+
+    // 🚨 NEW: Grab the logged-in user BEFORE opening Razorpay!
+    const { data: { user } } = await supabase.auth.getUser();
 
     const options = {
       key: import.meta.env.VITE_RAZORPAY_KEY,
@@ -95,73 +98,40 @@ export default function PaymentPage() {
       name: "FarmEase",
       description: isSelling ? `Purchase: ${equipment.name}` : `Rental: ${equipment.name} (${rentalDays} Days)`,
       image: "https://images.unsplash.com/photo-1592982537447-6f23b361bbcc?w=100&q=80",
-      handler: async function (response) {
-
+        handler: async function (response) {
         setShowPopup(true);
 
         try {
           const { data: { user } } = await supabase.auth.getUser();
 
-          const bookingStatus = isSelling ? "buyout" : "pending";
-
-          // A. SAVE BOOKING TO NODE.JS BACKEND
-          await fetch("http://localhost:5000/api/bookings", {
+          // 🚨 1. HIT THE NEW BACKEND ROUTE
+          // 🚨 2. MATCH THE VARIABLE NAMES THE BACKEND EXPECTS
+          const backendRes = await fetch("http://localhost:5000/api/bookings/create", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              userId: user?.id,
-              equipmentId: equipment.id || equipment._id,
-              equipmentName: equipment.name,
-              totalAmount: totalAmount,
-              rentalDays: rentalDays,
-              startDate: startDate,
-              endDate: endDate,
-              isSelling: isSelling,
-              transactionId: response.razorpay_payment_id,
-              deliveryMode: deliveryMode,
-              imageUrl: equipmentImage,
-              status: bookingStatus
+              renter_id: user?.id,
+              renter_name: user?.user_metadata?.full_name || user?.user_metadata?.name || "A verified farmer",
+              equipment_id: equipment.id || equipment._id,
+              total_amount: totalAmount,
+              start_date: startDate,
+              end_date: endDate,
+              image_url: equipment.image_url || equipment.image || equipment.img
             })
           });
 
-          if (user) {
-            // NOTIFICATION 1: For YOU (The Buyer/Renter)
-            const buyerTitle = isSelling ? "Purchase Successful!" : "Booking Request Sent!";
-            const buyerMessage = isSelling
-              ? `You have successfully purchased ${equipment.name}.`
-              : `Your request to rent ${equipment.name} for ${rentalDays} days has been sent to the owner.`;
-
-            await supabase.from("notifications").insert([{
-                user_id: user.id,
-                title: buyerTitle,
-                message: buyerMessage,
-                type: isSelling ? "success" : "info",
-                action_url: "/my-bookings",
-                is_read: false
-            }]);
-
-            // NOTIFICATION 2: For THE OWNER
-            const ownerId = equipment.user_id || equipment.owner_id || equipment.userId;
-
-            if (ownerId && ownerId !== user.id) {
-              const ownerTitle = isSelling ? "New Purchase Order!" : "New Rental Request!";
-              const ownerMessage = isSelling
-                ? `Someone has purchased your ${equipment.name}. Please check My Postings.`
-                : `Someone wants to rent your ${equipment.name} for ${rentalDays} days. Please review it in My Postings.`;
-
-              await supabase.from("notifications").insert([{
-                  user_id: ownerId,
-                  title: ownerTitle,
-                  message: ownerMessage,
-                  type: "request",
-                  action_url: "/my-postings",
-                  is_read: false
-              }]);
-            }
+          if (!backendRes.ok) {
+            throw new Error("Failed to create secure booking via backend.");
           }
 
+          // 🚨 3. THE GHOST CODE IS GONE!
+          // We completely deleted all the supabase.from("notifications").insert() code.
+          // Your Node.js server is now acting as the sole source of truth and creating
+          // the notifications perfectly linked to the booking_id.
+
         } catch (error) {
-          console.error("Failed to save booking/notification to database:", error);
+          console.error("Payment Handler Error:", error);
+          alert("There was an issue securing your booking. Please contact support.");
         }
 
         setTimeout(() => {
@@ -181,13 +151,13 @@ export default function PaymentPage() {
           });
         }, 2000);
       },
-      prefill: {
-        name: "FarmEase User",
-        email: "user@farmease.com",
-        contact: "9876543210"
+prefill: {
+        name: user?.user_metadata?.full_name || user?.user_metadata?.name || "FarmEase Farmer",
+        email: user?.email || "",
+        contact: user?.phone || "" // If you collect phone numbers in auth, this fills it automatically!
       },
       theme: {
-        color: "#15803d"
+        color: "#15803d" // Keep this! It matches your FarmEase UI
       }
     };
 

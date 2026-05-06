@@ -118,7 +118,7 @@ app.get('/api/marketplace', async (req, res) => {
 
     // 🚨 NEW: Format the raw database rows to perfectly match the React UI
     const formattedData = data.map(item => ({
-      ...item,
+      ...item, 
       image: item.image_url, // Maps DB image_url to UI image
       price: `₹ ${item.price_per_day} / day`, // Formats the price nicely
       location: item.location || item.district, // Grabs the best location
@@ -132,9 +132,9 @@ app.get('/api/marketplace', async (req, res) => {
       irrigation: formattedData.filter(item => item.type.toLowerCase().includes('pump') || item.type.toLowerCase().includes('irrigation')),
       others: formattedData.filter(item => {
         const type = item.type.toLowerCase();
-        return !type.includes('tractor') &&
-               !type.includes('harvester') &&
-               !type.includes('pump') &&
+        return !type.includes('tractor') && 
+               !type.includes('harvester') && 
+               !type.includes('pump') && 
                !type.includes('irrigation');
       })
     };
@@ -180,7 +180,7 @@ app.post('/api/equipment', async (req, res) => {
     }
 
     if (dbResponse.error) throw dbResponse.error;
-
+    
     res.status(201).json({ data: dbResponse.data });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -198,7 +198,7 @@ app.delete('/api/equipment/:id', async (req, res) => {
       .eq('id', id);
 
     if (error) throw error;
-
+    
     res.status(200).json({ message: "Equipment deleted successfully" });
   } catch (err) {
     console.error("Delete Error:", err);
@@ -211,11 +211,11 @@ app.delete('/api/equipment/:id', async (req, res) => {
 app.post('/api/bookings', async (req, res) => {
   try {
     const b = req.body;
-
+    
     // 🚨 STEP 1: Look up the real Farmer ID using profile_id
     const { data: farmerData, error: farmerError } = await supabase
       .from('farmers')
-      .select('id')
+      .select('id') 
       .eq('profile_id', b.userId) // Looking at the correct column!
       .single();
 
@@ -242,13 +242,13 @@ app.post('/api/bookings', async (req, res) => {
 
     // STEP 4: Save using the REAL Farmer ID
     const dbPayload = {
-      farmer_id: realFarmerId,
+      farmer_id: realFarmerId, 
       equipment_id: b.equipmentId,
       total_price: b.totalAmount,
       start_date: startDate.toISOString(),
       end_date: endDate.toISOString(),
       status: b.status,
-      notes: extraNotes
+      notes: extraNotes 
     };
 
     const { data, error } = await supabase
@@ -264,79 +264,6 @@ app.post('/api/bookings', async (req, res) => {
   }
 });
 
-// ─── API ROUTE: FETCH A USER'S BOOKINGS ───
-app.get('/api/bookings', async (req, res) => {
-  try {
-    const { user_id } = req.query;
-
-    if (!user_id) return res.status(400).json({ error: "User Auth ID is required" });
-
-    // 1. Translate Auth UUID to internal Farmer ID
-    const { data: farmerData, error: farmerError } = await supabase
-      .from('farmers')
-      .select('id')
-      .eq('profile_id', user_id)
-      .single();
-
-    if (farmerError || !farmerData) return res.status(200).json([]);
-
-    // 2. Fetch the Bookings
-    const { data: bookingsData, error: bookingsError } = await supabase
-      .from('bookings')
-      .select('*')
-      .eq('farmer_id', farmerData.id)
-      .order('created_at', { ascending: false });
-
-    if (bookingsError) throw bookingsError;
-
-    // 🚨 3. THE MAGIC: Fetch the actual Equipment Data for these bookings!
-    const equipmentIds = bookingsData.map(b => b.equipment_id);
-    const { data: equipmentData } = await supabase
-      .from('equipment_list')
-      .select('*')
-      .in('id', equipmentIds);
-
-    // Create a quick dictionary to easily look up the equipment by ID
-    const equipmentDictionary = {};
-    if (equipmentData) {
-      equipmentData.forEach(eq => {
-        equipmentDictionary[eq.id] = eq;
-      });
-    }
-
-    // 4. Translate back for the frontend
-    const frontendData = bookingsData.map(row => {
-      let parsedNotes = {};
-      try { parsedNotes = row.notes ? JSON.parse(row.notes) : {}; } catch (e) {}
-
-      // 🚨 Grab the stapled equipment data
-      const realEquipment = equipmentDictionary[row.equipment_id] || {};
-
-      return {
-        id: row.id,
-        userId: user_id,
-        equipmentId: row.equipment_id,
-        totalAmount: row.total_price,
-        status: row.status,
-        createdAt: row.created_at,
-
-        equipmentName: parsedNotes.equipmentName || "Equipment",
-        imageUrl: parsedNotes.imageUrl || "https://images.unsplash.com/photo-1592982537447-6f23b361bbcc?w=400&q=80",
-        transactionId: parsedNotes.transactionId,
-        deliveryMode: parsedNotes.deliveryMode,
-        isSelling: parsedNotes.isSelling,
-
-        // 🚨 STAPLE THE REAL EQUIPMENT MANUAL TO THE BOOKING!
-        fullEquipment: realEquipment
-      };
-    });
-
-    res.status(200).json(frontendData);
-  } catch (err) {
-    console.error("Error fetching bookings:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // ─── API ROUTE: FETCH SAVED EQUIPMENT ───
 app.get('/api/saved', async (req, res) => {
@@ -357,7 +284,7 @@ app.get('/api/saved', async (req, res) => {
 
     // Clean up the data so the frontend just gets a normal list of equipment
     const savedItems = data.map(item => item.equipment_list).filter(Boolean);
-
+    
     res.status(200).json(savedItems);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -386,16 +313,16 @@ app.post('/api/saved/toggle', async (req, res) => {
         .from('saved_equipment')
         .delete()
         .eq('id', existing.id);
-
+        
       if (deleteError) throw deleteError;
       return res.status(200).json({ action: 'removed' });
-
+      
     } else {
       // 3. It doesn't exist! The user clicked an EMPTY heart to save it.
       const { error: insertError } = await supabase
         .from('saved_equipment')
         .insert([{ user_id, equipment_id }]);
-
+        
       if (insertError) throw insertError;
       return res.status(200).json({ action: 'added' });
     }
@@ -432,15 +359,15 @@ app.get('/api/profile', async (req, res) => {
 // ─── API ROUTE: SAVE/UPDATE USER PROFILE ───
 app.post('/api/profile', async (req, res) => {
   try {
-    const {
-      id,
-      full_name,
-      phone,
-      location,
-      aadhaar_number,
-      kisan_id,
-      aadhaar_verified,
-      kisan_verified
+    const { 
+      id, 
+      full_name, 
+      phone, 
+      location, 
+      aadhaar_number, 
+      kisan_id, 
+      aadhaar_verified, 
+      kisan_verified 
     } = req.body;
 
     if (!id) return res.status(400).json({ error: "User ID is required" });
@@ -467,66 +394,100 @@ app.post('/api/profile', async (req, res) => {
   }
 });
 
-// ─── API ROUTE: CREATE BOOKING & TRIGGER ESCROW NOTIFICATION ───
+// ─── API ROUTE: FETCH A USER'S BOOKINGS ───
+app.get('/api/bookings', async (req, res) => {
+  try {
+    const { user_id } = req.query;
+    if (!user_id) return res.status(400).json({ error: "User Auth ID is required" });
+
+    // 1. Get Farmer ID
+    const { data: farmerData } = await supabase
+      .from('farmers')
+      .select('id')
+      .eq('profile_id', user_id)
+      .single();
+
+    if (!farmerData) return res.status(200).json([]);
+
+    // 2. Fetch Bookings
+    const { data: bookingsData, error: bookingsError } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('farmer_id', farmerData.id)
+      .order('created_at', { ascending: false });
+
+    if (bookingsError) throw bookingsError;
+
+    // 3. Staple Equipment Data (Images/Names)
+    const equipmentIds = bookingsData.map(b => b.equipment_id);
+    const { data: equipmentData } = await supabase
+      .from('equipment_list')
+      .select('*')
+      .in('id', equipmentIds);
+
+    const eqMap = {};
+    if (equipmentData) {
+      equipmentData.forEach(eq => { eqMap[eq.id] = eq; });
+    }
+
+    // 4. Return standard object for Frontend[cite: 2]
+    const result = bookingsData.map(row => {
+      const eq = eqMap[row.equipment_id] || {};
+      return {
+        id: row.id,
+        status: row.status,
+        totalAmount: row.total_price,
+        createdAt: row.created_at,
+        equipmentName: eq.name || "Equipment",
+        imageUrl: eq.image_url || "https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=400",
+        fullEquipment: eq
+      };
+    });
+
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── API ROUTE: CREATE BOOKING (Fixed ID return for Notification) ───
 app.post('/api/bookings/create', async (req, res) => {
   try {
-    const {
-      renter_id,
-      renter_name, // Pass the renter's name from the frontend for the message
-      equipment_id,
-      total_amount,
-      start_date,
-      end_date
-    } = req.body;
+    const { renter_id, renter_name, equipment_id, total_amount, start_date, end_date, image_url } = req.body;
 
-    // 1. Create the new booking with 'pending' status
+    const { data: farmerRecord } = await supabase.from('farmers').select('id').eq('profile_id', renter_id).single();
+    if (!farmerRecord) throw new Error("Farmer profile not found.");
+
     const { data: newBooking, error: bookingError } = await supabase
       .from('bookings')
       .insert([{
-        user_id: renter_id,
-        equipment_id: equipment_id,
-        total_amount: total_amount,
-        start_date: start_date,
-        end_date: end_date,
-        status: 'pending' // Explicitly set as requested
+        farmer_id: farmerRecord.id,
+        equipment_id,
+        total_price: total_amount,
+        start_date,
+        end_date,
+        status: 'pending',
+        image_url 
       }])
-      .select('id')
-      .single(); // We need the new ID returned immediately!
+      .select('id') // 🚨 Returns the ID immediately
+      .single();
 
     if (bookingError) throw bookingError;
 
-    // 2. Look up the Owner of the equipment
-    const { data: equipment, error: eqError } = await supabase
-      .from('equipment_list') // (Adjust table name if yours is different)
-      .select('user_id, name')
-      .eq('id', equipment_id)
-      .single();
+    const { data: equipment } = await supabase.from('equipment_list').select('name, owner_id').eq('id', equipment_id).single();
+    const { data: ownerRecord } = await supabase.from('farmers').select('profile_id').eq('id', equipment.owner_id).single();
 
-    if (eqError) throw eqError;
-    const ownerId = equipment.user_id;
+    // Create Notification using the correct type 'request' to match your UI
+    await supabase.from('notifications').insert([{
+      user_id: ownerRecord.profile_id,
+      type: 'request', // 🚨 Must be 'request' for Accept/Reject buttons to show
+      title: 'New Rental Request!',
+      message: `${renter_name} wants to rent your ${equipment.name}.`,
+      booking_id: newBooking.id
+    }]);
 
-    // 3. Create the Notification for the Owner
-    const { error: notifError } = await supabase
-      .from('notifications')
-      .insert([{
-        user_id: ownerId, // The Owner gets the notification
-        type: 'request',  // Triggers your Accept/Reject buttons
-        title: 'New Rental Request!',
-        message: `${renter_name || 'A verified farmer'} wants to rent your ${equipment.name}. Escrow deposit holds are in place.`,
-        booking_id: newBooking.id // Links directly to the booking
-      }]);
-
-    if (notifError) throw notifError;
-
-    // 4. Send success back to the frontend
-    res.status(200).json({
-      success: true,
-      booking_id: newBooking.id,
-      message: "Booking created and owner notified."
-    });
-
+    res.status(200).json({ success: true, booking_id: newBooking.id });
   } catch (err) {
-    console.error("Booking Flow Error:", err);
     res.status(500).json({ error: err.message });
   }
 });

@@ -76,19 +76,32 @@ export default function Notifications() {
 
   // 🚨 ESCROW ACTION: ACCEPT BOOKING
   const handleAccept = async (e, notification) => {
-    e.stopPropagation(); // Prevent the notification click event from firing
-    if (!notification.booking_id) return alert("Booking ID missing!");
+    e.stopPropagation();
 
     try {
-      // 1. Update the actual Booking to 'accepted'
+      const targetBookingId = notification.booking_id || notification.bookingId;
+      if (!targetBookingId || targetBookingId === "undefined") {
+        throw new Error("Booking ID missing. This might be an old test record.");
+      }
+
+      // 1. Instantly update UI for snappy UX
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === notification.id
+            ? { ...n, is_read: true, type: 'success', message: 'You have accepted this rental request. The escrow is locked.' }
+            : n
+        )
+      );
+
+      // 2. Update Bookings Database
       const { error: bookingError } = await supabase
         .from('bookings')
         .update({ status: 'accepted' })
-        .eq('id', notification.booking_id);
+        .eq('id', targetBookingId);
 
       if (bookingError) throw bookingError;
 
-      // 2. Update the Notification so it no longer shows the buttons
+      // 3. Update Notifications Database
       await supabase
         .from('notifications')
         .update({
@@ -99,26 +112,40 @@ export default function Notifications() {
         .eq('id', notification.id);
 
       alert("✅ Request Accepted! Escrow locked.");
-    } catch (error) {
-      alert("Error accepting booking: " + error.message);
+    } catch (err) {
+      console.error("Accept Error:", err);
+      alert("Failed to update: " + err.message);
     }
   };
 
   // 🚨 ESCROW ACTION: REJECT BOOKING
   const handleReject = async (e, notification) => {
     e.stopPropagation();
-    if (!notification.booking_id) return alert("Booking ID missing!");
 
     try {
-      // 1. Update the actual Booking to 'rejected'
+      const targetBookingId = notification.booking_id || notification.bookingId;
+      if (!targetBookingId || targetBookingId === "undefined") {
+        throw new Error("Booking ID missing. This might be an old test record.");
+      }
+
+      // 1. Instantly update UI for snappy UX
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === notification.id
+            ? { ...n, is_read: true, type: 'error', message: 'You rejected this rental request. The deposit hold will be released.' }
+            : n
+        )
+      );
+
+      // 2. Update Bookings Database (FIXED to say 'rejected')
       const { error: bookingError } = await supabase
         .from('bookings')
         .update({ status: 'rejected' })
-        .eq('id', notification.booking_id);
+        .eq('id', targetBookingId);
 
       if (bookingError) throw bookingError;
 
-      // 2. Update the Notification
+      // 3. Update Notifications Database
       await supabase
         .from('notifications')
         .update({
@@ -129,8 +156,9 @@ export default function Notifications() {
         .eq('id', notification.id);
 
       alert("❌ Request Rejected.");
-    } catch (error) {
-      alert("Error rejecting booking: " + error.message);
+    } catch (err) {
+      console.error("Reject Error:", err);
+      alert("Failed to update: " + err.message);
     }
   };
 
@@ -272,18 +300,18 @@ export default function Notifications() {
                   )}
                 </div>
 
-                {/* 🚨 INTERACTIVE BUTTONS FOR REQUESTS */}
-                {notif.type === "request" && (
+                {/* 🚨 INTERACTIVE BUTTONS FOR REQUESTS (Hidden if already read/acted upon) */}
+                {notif.type === "request" && !notif.is_read && (
                   <div className="flex flex-row gap-2 mt-2 ml-13 sm:ml-14">
                     <button
                       onClick={(e) => handleAccept(e, notif)}
-                      className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors shadow-sm"
+                      className="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors shadow-sm cursor-pointer"
                     >
                       Accept
                     </button>
                     <button
                       onClick={(e) => handleReject(e, notif)}
-                      className="flex-1 bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-bold border border-red-100 hover:bg-red-100 transition-colors"
+                      className="flex-1 bg-red-50 text-red-600 px-4 py-2 rounded-lg text-sm font-bold border border-red-100 hover:bg-red-100 transition-colors cursor-pointer"
                     >
                       Reject
                     </button>
