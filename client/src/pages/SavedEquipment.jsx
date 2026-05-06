@@ -1,34 +1,72 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import { useLanguage } from "../Context/LanguageContext"; // Ensure path is correct
+import { useLanguage } from "../Context/LanguageContext"; 
+import { supabase } from "../supabaseClient"; // 🚨 Added Supabase Import
 
 export default function SavedEquipments() {
   const navigate = useNavigate();
   const { t } = useLanguage();
 
-  // Start completely empty. No dummy data allowed!
   const [saved, setSaved] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // 1. Pull EXACTLY what you clicked from localStorage
+  // 1. 🚨 NEW: Fetch from the Database, not Local Storage
   useEffect(() => {
-    // We look for the exact "savedEquipment" key that your Detail Page uses
-    const items = JSON.parse(localStorage.getItem("savedEquipment") || "[]");
-    setSaved(items);
+    const fetchRealSavedItems = async () => {
+      setIsLoading(true);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setIsLoading(false);
+          return;
+        }
+        
+        setCurrentUser(user);
+
+        const response = await fetch(`http://localhost:5000/api/saved?user_id=${user.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setSaved(data);
+        }
+      } catch (error) {
+        console.error("Failed to load saved equipment:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRealSavedItems();
   }, []);
 
-  // 2. Remove items dynamically
-  const handleRemove = (e, itemToRemove) => {
-    e.stopPropagation(); // Stop the card from clicking when you click the heart
+  // 2. 🚨 NEW: Sync removals with the Backend Database
+  const handleRemove = async (e, itemToRemove) => {
+    e.stopPropagation(); 
 
-    // Filter out the one you just un-hearted
-    const updatedItems = saved.filter(item =>
-      item.id ? item.id !== itemToRemove.id : item.name !== itemToRemove.name
-    );
+    if (!currentUser) return;
 
-    // Instantly update the screen AND the browser memory
+    // Optimistic UI Update: Remove it from the screen instantly
+    const updatedItems = saved.filter(item => item.id !== itemToRemove.id);
     setSaved(updatedItems);
-    localStorage.setItem("savedEquipment", JSON.stringify(updatedItems));
+
+    try {
+      const response = await fetch("http://localhost:5000/api/saved/toggle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: currentUser.id,
+          equipment_id: itemToRemove.id
+        })
+      });
+
+      if (!response.ok) throw new Error("Failed to delete from database");
+
+    } catch (error) {
+      console.error("Database deletion failed:", error);
+      // Revert if the database fails
+      setSaved(saved);
+    }
   };
 
   // 3. Go to detail page if clicked
@@ -65,8 +103,15 @@ export default function SavedEquipments() {
         {/* Cards Container */}
         <div className="flex flex-col gap-3 w-full">
 
+          {/* Loading State */}
+          {isLoading && (
+             <div className="text-center py-10 text-gray-500 font-medium">
+               Loading your saved equipment...
+             </div>
+          )}
+
           {/* ONLY MAP THROUGH REAL, SAVED DATA */}
-          {saved.map((item, index) => {
+          {!isLoading && saved.map((item, index) => {
             const isSelling = item.description?.toLowerCase().includes("listing intent: sell");
             const priceText = isSelling ? `₹${item.price || item.price_per_day}` : `₹${item.price_per_day || item.price} / day`;
             const image = item.image_url || item.image || "https://images.unsplash.com/photo-1592982537447-6f23b361bbcc?w=400&q=80";
@@ -139,8 +184,8 @@ export default function SavedEquipments() {
             );
           })}
 
-          {/* EMPTY STATE: This shows up if there is NOTHING saved in localStorage */}
-          {saved.length === 0 && (
+          {/* EMPTY STATE: Shows up if the database list is completely empty */}
+          {!isLoading && saved.length === 0 && (
             <div className="text-center py-24 text-gray-400">
               <p className="text-base font-semibold text-gray-600">
                 {t("noSavedEquipment") || "No Saved Equipment"}

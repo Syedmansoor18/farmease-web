@@ -47,9 +47,6 @@ const StatsBar = ({ t, listingsCount, rating, savedCount, aadhaarVerified, kisan
   </div>
 );
 
-// 🚨 FIXED LAYOUT:
-// On mobile (default): flex, horizontal scroll, snap-x.
-// On desktop (md:): grid, 5 columns! No weird stretching or massive spaces.
 const ScrollSection = ({ title, children, onClick }) => (
   <div className="mb-2 w-full">
     <div className="flex justify-between items-center mb-3">
@@ -64,7 +61,6 @@ const ScrollSection = ({ title, children, onClick }) => (
   </div>
 );
 
-// 🚨 FIXED CARDS: w-[220px] on mobile to maintain swipe shape, w-full on desktop to fill grid slots perfectly!
 const BookingCard = ({ item, onClick }) => (
   <div onClick={onClick} className="w-[180px] sm:w-[220px] md:w-full flex-shrink-0 snap-start bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm cursor-pointer hover:shadow-md transition flex flex-col">
     <div className="w-full h-28 sm:h-32">
@@ -88,8 +84,8 @@ const SavedCard = ({ item, onRemove }) => {
   const image = item.image_url || item.image || "https://images.unsplash.com/photo-1592982537447-6f23b361bbcc?w=400&q=80";
 
   return (
-    <div className="w-[180px] sm:w-[220px] md:w-full flex-shrink-0 snap-start bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm relative flex flex-col">
-      <div className="w-full h-28 sm:h-32 relative">
+    <div className="flex-1 min-w-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm relative">
+      <div className="w-full aspect-video relative">
         <img src={image} alt={item.name} className="w-full h-full object-cover"/>
         <button onClick={e => { e.stopPropagation(); onRemove(item); }} className="absolute top-2 right-2 bg-white rounded-full p-1.5 shadow-md cursor-pointer border-none z-10 hover:bg-red-50 transition-colors">
           <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-red-500">
@@ -151,32 +147,45 @@ export default function Profile() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        localStorage.removeItem("myPostings"); // Clean old ghosts
-
-        const savedProfile = JSON.parse(localStorage.getItem("userProfile")) || {};
+        // 1. Ask Supabase Auth who is currently logged in
         const { data: { user } } = await supabase.auth.getUser();
 
         if (user) {
+          // 2. Fetch their custom profile data from the backend
+          let dbProfile = {};
+          try {
+            const profileRes = await fetch(`http://localhost:5000/api/profile?user_id=${user.id}`);
+            if (profileRes.ok) {
+              dbProfile = await profileRes.json();
+            }
+          } catch (err) {
+            console.error("Profile fetch error:", err);
+          }
+
+          // 3. Merge the Auth data with the Database data
           const supabaseName = user.user_metadata?.full_name || user.user_metadata?.name || user.user_metadata?.first_name;
-          const localName = savedProfile.fullName || savedProfile.name;
-          const actualName = supabaseName || localName || "Verified Farmer";
+          const actualName = dbProfile.full_name || supabaseName || "Verified Farmer";
+
+          const displayKisanId = dbProfile.kisan_id
+            ? `ID: ${dbProfile.kisan_id}`
+            : `ID: ${user.id.substring(0, 8).toUpperCase()}`;
 
           setProfileData({
             name: actualName,
-            kisanId: savedProfile.kisanId ? `ID: ${savedProfile.kisanId}` : `ID: ${user.id.substring(0, 8).toUpperCase()}`,
-            rating: "5.0",
-            aadhaarVerified: savedProfile.aadhaarVerified || false,
-            kisanVerified: savedProfile.kisanVerified || false,
+            kisanId: displayKisanId,
+            rating: dbProfile.rating || "5.0",
+            aadhaarVerified: dbProfile.aadhaar_verified || false,
+            kisanVerified: dbProfile.kisan_verified || false,
           });
 
-          // 1. Fetch Bookings
+          // 4. Fetch Bookings
           const bookingsRes = await fetch(`http://localhost:5000/api/bookings?user_id=${user.id}`);
           if (bookingsRes.ok) {
             const bData = await bookingsRes.json();
             setMyBookings(bData.slice(0, 5));
           }
 
-          // 2. Fetch Postings
+          // 5. Fetch Postings
           const postingsRes = await fetch(`http://localhost:5000/api/my-postings?user_id=${user.id}`);
           if (postingsRes.ok) {
             const pData = await postingsRes.json();
@@ -189,7 +198,7 @@ export default function Profile() {
             setMyPostings(formattedPostings.slice(0, 5));
           }
 
-          // 3. Fetch Real Saved Equipment from Database!
+          // 6. Fetch Saved Equipment
           const savedRes = await fetch(`http://localhost:5000/api/saved?user_id=${user.id}`);
           if (savedRes.ok) {
             const sData = await savedRes.json();
@@ -205,6 +214,7 @@ export default function Profile() {
   }, []);
 
   const handleRemoveSaved = async (itemToRemove) => {
+    // Optimistic UI Update
     const updatedItems = savedEquipment.filter(item => item.id !== itemToRemove.id);
     setSavedEquipment(updatedItems);
 
@@ -225,7 +235,17 @@ export default function Profile() {
 
     } catch (error) {
       console.error("Database deletion failed:", error);
+      // Revert if API call fails
       setSavedEquipment(savedEquipment);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      navigate("/");
+    } catch (error) {
+      console.error("Error logging out:", error);
     }
   };
 
@@ -323,7 +343,7 @@ export default function Profile() {
             <SettingsGroup title={t("helpAndSupport")} items={helpSupport} />
           </div>
 
-          <button onClick={() => navigate("/")} className="w-full border-2 border-green-600 text-green-700 font-bold rounded-xl py-3.5 text-sm hover:bg-green-600 hover:text-white transition-colors duration-200 cursor-pointer shadow-sm">
+          <button onClick={handleLogout} className="w-full border-2 border-green-600 text-green-700 font-bold rounded-xl py-3.5 text-sm hover:bg-green-600 hover:text-white transition-colors duration-200 cursor-pointer shadow-sm">
             {t("logout")}
           </button>
         </div>

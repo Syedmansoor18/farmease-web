@@ -136,51 +136,75 @@ export default function MyBookings() {
             <p className="text-gray-500 text-sm">You haven't made any bookings yet.</p>
         ) : (
           <div className="flex flex-col gap-3 w-full">
-            {bookings.map((booking) => (
-              <div
-                key={booking._id || booking.id}
-                onClick={() => handleNavigate(booking)}
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 p-3 cursor-pointer hover:shadow-md transition-shadow"
-              >
-                {/* Image */}
-                <img
-                  src={booking.imageUrl || booking.image || booking.img}
-                  alt={booking.equipmentName || booking.name}
-                  className="w-20 h-16 sm:w-24 sm:h-20 rounded-xl object-cover shrink-0"
-                  onError={(e) => {
-                    e.target.src =
-                      "https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=400&q=80";
-                  }}
-                />
+              {bookings.map((booking) => {
+              // 1. Calculate the dynamic colors and text right here for each booking
+              const currentStatus = booking.status || 'pending';
+              let colorClass = 'bg-gray-100 text-gray-800 border-gray-200'; // fallback
+              let displayText = currentStatus;
 
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm text-gray-900 truncate capitalize">
-                    {booking.equipmentName || booking.name}
-                  </p>
-                  <p className="text-green-700 font-semibold text-sm mt-0.5">
-                    ₹{booking.totalAmount || booking.price}
-                  </p>
-                  <p className="text-gray-400 text-xs mt-0.5">
-                    {booking.createdAt ? new Date(booking.createdAt).toLocaleDateString() : booking.date}
-                  </p>
-                </div>
+              if (currentStatus === 'pending') {
+                colorClass = 'bg-yellow-100 text-yellow-800 border-yellow-200';
+                displayText = 'Awaiting Approval';
+              } else if (currentStatus === 'accepted' || currentStatus === 'rented') {
+                colorClass = 'bg-green-100 text-green-800 border-green-200';
+              } else if (currentStatus === 'rejected') {
+                colorClass = 'bg-red-100 text-red-800 border-red-200';
+              }
 
-                {/* Action Button */}
+              return (
                 <div
-                  className="shrink-0"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleNavigate(booking);
-                  }}
+                  key={booking._id || booking.id}
+                  onClick={() => handleNavigate(booking)}
+                  className="bg-white rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 p-3 cursor-pointer hover:shadow-md transition-shadow relative"
                 >
-                  <StatusButton
-                    status={booking.status}
-                    onClick={() => handleNavigate(booking)}
+                  {/* Image */}
+                  <img
+                    src={booking.imageUrl || booking.image || booking.img}
+                    alt={booking.equipmentName || booking.name}
+                    className="w-20 h-16 sm:w-24 sm:h-20 rounded-xl object-cover shrink-0"
+                    onError={(e) => {
+                      e.target.src =
+                        "https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=400&q=80";
+                    }}
                   />
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+
+                    {/* 👇 THE NEW TITLE & BADGE LAYOUT 👇 */}
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-bold text-sm text-gray-900 truncate capitalize">
+                        {booking.equipmentName || booking.name}
+                      </p>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border shrink-0 ${colorClass}`}>
+                        {displayText}
+                      </span>
+                    </div>
+                    {/* 👆 ----------------------------- 👆 */}
+
+                    <p className="text-green-700 font-semibold text-sm mt-0.5">
+                      ₹{booking.totalAmount || booking.price}
+                    </p>
+                    <p className="text-gray-400 text-xs mt-0.5">
+                      {booking.createdAt ? new Date(booking.createdAt).toLocaleDateString() : booking.date}
+                    </p>
+                  </div>
+
+                  {/* Action Button */}
+                  <div className="shrink-0">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleNavigate(booking);
+                      }}
+                      className="bg-green-700 hover:bg-green-800 text-white text-xs font-semibold px-4 py-1.5 rounded-md transition-colors cursor-pointer border-none"
+                    >
+                      {t("viewBooking") || "View"}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>

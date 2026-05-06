@@ -251,10 +251,12 @@ export default function SearchScreen() {
   };
 
   return (
-    <div className="bg-[#f4f6f3] min-h-screen font-sans max-w-[100vw] overflow-hidden">
+    // 🚨 FIXED: Added `flex` here to the parent wrapper so `flex-1` works properly on the child
+    <div className="flex bg-[#f4f6f3] min-h-screen font-sans max-w-[100vw] overflow-hidden">
       <Sidebar />
-      {/* 🚨 Adjusted margin for desktop, zero margin for mobile. Added bottom padding. */}
-      <div className="ml-0 md:ml-[76px] p-4 md:p-6 pb-28 md:pb-6 overflow-y-auto overflow-x-hidden w-full h-full">
+
+      {/* 🚨 FIXED: Removed w-full and added flex-1 to prevent the sidebar margin from pushing the content off-screen */}
+      <div className="flex-1 ml-0 md:ml-[76px] p-4 md:p-6 pb-28 md:pb-6 overflow-y-auto overflow-x-hidden h-full">
 
         <div className="flex flex-col sm:flex-row gap-2 mb-4">
           <div className="flex-1 relative w-full">
@@ -348,7 +350,7 @@ export default function SearchScreen() {
           </div>
         ) : (
           /* 🚨 Responsive Grid: 1 column on mobile, drops into standard grid on sm+ screens */
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-[repeat(auto-fill,minmax(235px,1fr))] gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[repeat(auto-fill,minmax(235px,1fr))] gap-4">
             {sorted.map(item => (
               <EquipmentCard
                 key={item.id}

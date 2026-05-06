@@ -16,29 +16,45 @@ export default function EditProfile() {
     kisanVerified: false,
   });
 
+  const [userId, setUserId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [verifyingAadhaar, setVerifyingAadhaar] = useState(false);
   const [verifyingKisan, setVerifyingKisan] = useState(false);
 
+  // 🚨 1. FETCH REAL DATA FROM BACKEND (NO LOCAL STORAGE)
   useEffect(() => {
     const fetchUserData = async () => {
-      // 🚨 DYNAMIC FIX 1: Check if we already saved a profile previously
-      const savedProfile = JSON.parse(localStorage.getItem("userProfile"));
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-      if (savedProfile) {
-        setFormData(savedProfile); // Load the saved data!
-      } else {
-        // Fallback to basic Supabase auth info if nothing is saved yet
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
+      setUserId(user.id);
+
+      try {
+        const response = await fetch(`http://localhost:5000/api/profile?user_id=${user.id}`);
+        if (response.ok) {
+          const dbProfile = await response.json();
+          setFormData({
+            fullName: dbProfile.full_name || user.user_metadata?.full_name || "",
+            phone: dbProfile.phone || user.phone || "",
+            location: dbProfile.location || "",
+            aadhaarNumber: dbProfile.aadhaar_number || "",
+            kisanId: dbProfile.kisan_id || "",
+            aadhaarVerified: dbProfile.aadhaar_verified || false,
+            kisanVerified: dbProfile.kisan_verified || false,
+          });
+        } else {
+          // Fallback if profile doesn't exist in DB yet
           setFormData(prev => ({
             ...prev,
             fullName: user.user_metadata?.full_name || "",
             phone: user.phone || "",
           }));
         }
+      } catch (error) {
+        console.error("Error fetching profile:", error);
       }
     };
+
     fetchUserData();
   }, []);
 
@@ -46,17 +62,40 @@ export default function EditProfile() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // 🚨 2. SAVE CHANGES SECURELY TO BACKEND
   const handleSave = async (e) => {
     e.preventDefault();
+    if (!userId) return;
+
     setLoading(true);
 
-    // 🚨 DYNAMIC FIX 2: Save the verified status and name to localStorage
-    localStorage.setItem("userProfile", JSON.stringify(formData));
+    try {
+      const response = await fetch("http://localhost:5000/api/profile", {
+        method: "POST", // Or PUT depending on your backend
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId,
+          full_name: formData.fullName,
+          phone: formData.phone,
+          location: formData.location,
+          aadhaar_number: formData.aadhaarNumber,
+          kisan_id: formData.kisanId,
+          aadhaar_verified: formData.aadhaarVerified,
+          kisan_verified: formData.kisanVerified,
+        })
+      });
 
-    setTimeout(() => {
-      setLoading(false);
+      if (!response.ok) {
+        throw new Error("Failed to save profile to database");
+      }
+
+      // Automatically redirect to Profile page where it will fetch fresh data!
       navigate("/profile");
-    }, 1000);
+    } catch (error) {
+      alert("Error saving profile: " + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleVerifyAadhaar = () => {
@@ -65,6 +104,7 @@ export default function EditProfile() {
       return;
     }
     setVerifyingAadhaar(true);
+    // Simulating API verification delay
     setTimeout(() => {
       setVerifyingAadhaar(false);
       setFormData(prev => ({ ...prev, aadhaarVerified: true }));
@@ -77,6 +117,7 @@ export default function EditProfile() {
       return;
     }
     setVerifyingKisan(true);
+    // Simulating API verification delay
     setTimeout(() => {
       setVerifyingKisan(false);
       setFormData(prev => ({ ...prev, kisanVerified: true }));
