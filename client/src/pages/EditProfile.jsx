@@ -30,7 +30,7 @@ export default function EditProfile() {
       setUserId(user.id);
 
       try {
-        const response = await fetch(`http://localhost:5000/api/profile?user_id=${user.id}`);
+        const response = await fetch(`https://farmease-web.onrender.com/api/profile?user_id=${user.id}`);
         if (response.ok) {
           const dbProfile = await response.json();
           setFormData({
@@ -70,7 +70,7 @@ export default function EditProfile() {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/profile", {
+      const response = await fetch("https://farmease-web.onrender.com/api/profile", {
         method: "POST", // Or PUT depending on your backend
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

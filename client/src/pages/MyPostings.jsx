@@ -24,11 +24,11 @@ export default function MyPostings() {
       if (!user) return;
 
       // 1. Fetch Owner's Equipment
-      const eqResponse = await fetch(`http://localhost:5000/api/my-postings?user_id=${user.id}`);
+      const eqResponse = await fetch(`https://farmease-web.onrender.com/api/my-postings?user_id=${user.id}`);
       const equipmentData = await eqResponse.json();
 
       // 2. Fetch Incoming Requests
-      const reqResponse = await fetch(`http://localhost:5000/api/owner-requests?owner_id=${user.id}`);
+      const reqResponse = await fetch(`https://farmease-web.onrender.com/api/owner-requests?owner_id=${user.id}`);
       if (reqResponse.ok) {
         const reqData = await reqResponse.json();
         setRequests(reqData);
@@ -91,7 +91,7 @@ export default function MyPostings() {
   const handleAcceptRequest = async (request) => {
     try {
       // 1. Update Booking status to 'rented' in your Node Backend
-      await fetch(`http://localhost:5000/api/bookings/${request._id || request.id}`, {
+      await fetch(`https://farmease-web.onrender.com/api/bookings/${request._id || request.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "rented" })
@@ -127,7 +127,7 @@ export default function MyPostings() {
 
     try {
       // Tell the Node server to delete it from Supabase
-      const response = await fetch(`http://localhost:5000/api/equipment/${postToDelete}`, {
+      const response = await fetch(`https://farmease-web.onrender.com/api/equipment/${postToDelete}`, {
         method: "DELETE"
       });
 

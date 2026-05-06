@@ -25,7 +25,7 @@ export default function SavedEquipments() {
         
         setCurrentUser(user);
 
-        const response = await fetch(`http://localhost:5000/api/saved?user_id=${user.id}`);
+        const response = await fetch(`https://farmease-web.onrender.com/api/saved?user_id=${user.id}`);
         if (response.ok) {
           const data = await response.json();
           setSaved(data);
@@ -51,7 +51,7 @@ export default function SavedEquipments() {
     setSaved(updatedItems);
 
     try {
-      const response = await fetch("http://localhost:5000/api/saved/toggle", {
+      const response = await fetch("https://farmease-web.onrender.com/api/saved/toggle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

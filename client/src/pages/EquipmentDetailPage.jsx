@@ -42,7 +42,7 @@ export default function EquipmentDetailPage() {
       setCurrentUser(user);
 
       try {
-        const response = await fetch(`http://localhost:5000/api/saved?user_id=${user.id}`);
+        const response = await fetch(`https://farmease-web.onrender.com/api/saved?user_id=${user.id}`);
         if (response.ok) {
           const savedData = await response.json();
           // Check if the current equipment ID exists in the user's database list
@@ -70,7 +70,7 @@ export default function EquipmentDetailPage() {
     setWishlist(!currentlySaved);
 
     try {
-      const response = await fetch("http://localhost:5000/api/saved/toggle", {
+      const response = await fetch("https://farmease-web.onrender.com/api/saved/toggle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

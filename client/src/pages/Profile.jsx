@@ -154,7 +154,7 @@ export default function Profile() {
           // 2. Fetch their custom profile data from the backend
           let dbProfile = {};
           try {
-            const profileRes = await fetch(`http://localhost:5000/api/profile?user_id=${user.id}`);
+            const profileRes = await fetch(`https://farmease-web.onrender.com/api/profile?user_id=${user.id}`);
             if (profileRes.ok) {
               dbProfile = await profileRes.json();
             }
@@ -179,14 +179,14 @@ export default function Profile() {
           });
 
           // 4. Fetch Bookings
-          const bookingsRes = await fetch(`http://localhost:5000/api/bookings?user_id=${user.id}`);
+          const bookingsRes = await fetch(`https://farmease-web.onrender.com/api/bookings?user_id=${user.id}`);
           if (bookingsRes.ok) {
             const bData = await bookingsRes.json();
             setMyBookings(bData.slice(0, 5));
           }
 
           // 5. Fetch Postings
-          const postingsRes = await fetch(`http://localhost:5000/api/my-postings?user_id=${user.id}`);
+          const postingsRes = await fetch(`https://farmease-web.onrender.com/api/my-postings?user_id=${user.id}`);
           if (postingsRes.ok) {
             const pData = await postingsRes.json();
             const formattedPostings = pData.map(eq => ({
@@ -199,7 +199,7 @@ export default function Profile() {
           }
 
           // 6. Fetch Saved Equipment
-          const savedRes = await fetch(`http://localhost:5000/api/saved?user_id=${user.id}`);
+          const savedRes = await fetch(`https://farmease-web.onrender.com/api/saved?user_id=${user.id}`);
           if (savedRes.ok) {
             const sData = await savedRes.json();
             setSavedEquipment(sData.slice(0, 5));
@@ -222,7 +222,7 @@ export default function Profile() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const response = await fetch("http://localhost:5000/api/saved/toggle", {
+      const response = await fetch("https://farmease-web.onrender.com/api/saved/toggle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

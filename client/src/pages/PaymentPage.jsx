@@ -106,7 +106,7 @@ const handlePayment = async () => {
 
           // 🚨 1. HIT THE NEW BACKEND ROUTE
           // 🚨 2. MATCH THE VARIABLE NAMES THE BACKEND EXPECTS
-          const backendRes = await fetch("http://localhost:5000/api/bookings/create", {
+          const backendRes = await fetch("https://farmease-web.onrender.com/api/bookings/create", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

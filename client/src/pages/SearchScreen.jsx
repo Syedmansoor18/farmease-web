@@ -125,7 +125,7 @@ export default function SearchScreen() {
       setCurrentUser(user);
 
       try {
-        const response = await fetch(`http://localhost:5000/api/saved?user_id=${user.id}`);
+        const response = await fetch(`https://farmease-web.onrender.com/api/saved?user_id=${user.id}`);
         if (response.ok) {
           const data = await response.json();
           setSavedItems(data);
@@ -139,7 +139,7 @@ export default function SearchScreen() {
   }, []);
 
   const executeSearch = async (searchTerm, currentMode, currentState, currentCategory) => {
-    const baseUrl = "http://localhost:5000/api/search";
+    const baseUrl = "https://farmease-web.onrender.com/api/search";
     const params = new URLSearchParams({
       query: searchTerm,
       mode: currentMode,
@@ -230,7 +230,7 @@ export default function SearchScreen() {
     }
 
     try {
-      const response = await fetch("http://localhost:5000/api/saved/toggle", {
+      const response = await fetch("https://farmease-web.onrender.com/api/saved/toggle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -78,8 +78,8 @@ const Marketplace = () => {
     const fetchMarketplaceData = async () => {
       try {
         // Replace this URL with your actual backend endpoint if needed
-        // e.g., http://localhost:5000/api/marketplace
-        const response = await fetch('http://localhost:5000/api/marketplace');
+        // e.g., https://farmease-web.onrender.com/api/marketplace
+        const response = await fetch('https://farmease-web.onrender.com/api/marketplace');
 
         if (!response.ok) {
           throw new Error('Network response was not ok');

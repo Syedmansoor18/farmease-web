@@ -17,7 +17,7 @@ export default function MyBookings() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        const response = await fetch(`http://localhost:5000/api/bookings?user_id=${user.id}`);
+        const response = await fetch(`https://farmease-web.onrender.com/api/bookings?user_id=${user.id}`);
         const data = await response.json();
         console.log("My Bookings Data:", data);
         setBookings(data);
