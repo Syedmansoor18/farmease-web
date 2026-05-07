@@ -1,17 +1,36 @@
-# React + Vite
+FARMEASE-BRIDGING THE GAP BETWEEN TRADITIONAL FARMING AND MODERN TECHNOLOGY THROUGH A SHARED ECONOMY MODEL THAT MAKES EXPENSIVE INDUSTRIAL EQUIPMENT ACCESSIBLE AND AFFORDABLE FOR EVERY GROWER
+
+FarmEase is a full-stack web application designed to facilitate agricultural equipment sharing among farmers. The platform enables users to list, search, and book farming equipment through a centralized digital system, improving accessibility and reducing operational costs.
+
+The system is built using React for the frontend, Express for backend services, and Supabase for authentication and database management. It ensures secure user access, efficient data handling, and seamless interaction between different system components.
+
+Key Features
+Secure user authentication and access control
+Equipment listing and management
+Search and filtering based on category and location
+Booking and reservation system
+Multilingual user interface
+Image storage using Supabase
 
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+System Overview
+The application follows a structured architecture where the frontend communicates with backend APIs, and the backend interacts with the Supabase database. User authentication is handled by Supabase Auth, while application data is stored in PostgreSQL tables such as profiles, farmers, equipment, and bookings.
 
-Currently, two official plugins are available:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-## React Compiler
+Technologies Used
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Frontend: React, Tailwind CSS
 
-## Expanding the ESLint configuration
+Backend: Node.js, Express
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Database: PostgreSQL (Supabase)
+
+Authentication: Supabase Auth
+
+Storage: Supabase Storage
+
+
+
+Conclusion
+FarmEase demonstrates the effective use of modern web technologies to build a scalable and user-friendly agricultural platform. It provides a practical solution for equipment sharing and highlights the role of digital systems in improving agricultural efficiency.
