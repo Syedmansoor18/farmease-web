@@ -196,7 +196,7 @@ const Signup = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="col-span-1 md:col-span-2">
                       <label className="block text-xs md:text-sm font-bold text-[#2D3432] mb-1.5">{t('Full Name')}</label>
-                      <input name="fullname" value={formData.fullName} onChange={handleChange} className="w-full bg-[#F1F4F2] border-none rounded-xl px-4 py-3 md:py-3.5 text-sm md:text-base focus:ring-2 focus:ring-[#006F1D]" placeholder="e.g. Ramesh Kumar" required />
+                      <input name="fullName" value={formData.fullName} onChange={handleChange} className="w-full bg-[#F1F4F2] border-none rounded-xl px-4 py-3 md:py-3.5 text-sm md:text-base focus:ring-2 focus:ring-[#006F1D]" placeholder="e.g. Ramesh Kumar" required />
                     </div>
                     <div>
                       <label className="block text-xs md:text-sm font-bold text-[#2D3432] mb-1.5">{t('Phone Number')}</label>
